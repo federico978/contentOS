@@ -76,6 +76,13 @@ function PanelMedia({ post, activeChannel }: { post: ReviewPost; activeChannel: 
       </div>
     )
   }
+  if (activeChannel === 'x') {
+    return (
+      <div className="w-full bg-black">
+        <img src={src} alt="" className="w-full h-auto object-contain block" />
+      </div>
+    )
+  }
   return (
     <div className="w-full overflow-hidden" style={{ aspectRatio: '4/5' }}>
       <img src={src} alt="" className="h-full w-full object-cover" />
