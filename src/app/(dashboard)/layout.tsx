@@ -16,14 +16,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect('/login')
 
-  const email = user.email ?? ''
+  const email = (user.email ?? '').toLowerCase().trim()
 
   // ── Determine role ────────────────────────────────────────────────────────
   // Priority: cookie → DB profile → email fallback
   const cookieStore = await cookies()
   const roleCookie  = cookieStore.get('user_role')?.value
 
-  let role: UserRole = email === SUPER_ADMIN_EMAIL ? 'super_admin' : 'reviewer'
+  let role: UserRole = email === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : 'reviewer'
 
   if (roleCookie === 'super_admin' || roleCookie === 'reviewer') {
     role = roleCookie

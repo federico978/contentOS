@@ -25,11 +25,11 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=auth`)
   }
 
-  const email = user.email
+  const email = user.email.toLowerCase().trim()
 
   // ── Domain check ─────────────────────────────────────────────────────────
   const isAllowed =
-    email === SUPER_ADMIN_EMAIL || email.endsWith(ALLOWED_DOMAIN)
+    email === SUPER_ADMIN_EMAIL.toLowerCase() || email.endsWith(ALLOWED_DOMAIN)
 
   if (!isAllowed) {
     await supabase.auth.signOut()
