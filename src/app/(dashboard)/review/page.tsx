@@ -35,6 +35,31 @@ function channelDate(post: ReviewPost, slug: ChannelSlug) {
   return post.post_channels.find((c) => c.channel?.slug === slug)?.scheduled_at ?? null
 }
 
+const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/g
+
+function parseLinkedInText(text: string) {
+  const parts = text.split(URL_RE)
+  return parts.map((part, i) => {
+    if (URL_RE.test(part)) {
+      URL_RE.lastIndex = 0 // reset stateful regex after test()
+      const href = part.startsWith('http') ? part : `https://${part}`
+      return (
+        <a
+          key={i}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{ color: '#0A66C2', fontWeight: 600 }}
+        >
+          {part}
+        </a>
+      )
+    }
+    return part
+  })
+}
+
 // First-frame extractor for Supabase videos (no cover image available)
 function VideoFirstFrame({ src }: { src: string }) {
   const ref = useRef<HTMLVideoElement>(null)
@@ -278,10 +303,10 @@ function LinkedInCard({
         <ChannelIcon slug="linkedin" size={20} />
       </div>
 
-      {/* Copy */}
+      {/* Copy — URLs rendered as LinkedIn-style links */}
       {copy && (
         <p className="px-4 pb-3 text-[14px] leading-relaxed text-neutral-900 whitespace-pre-wrap">
-          {copy}
+          {parseLinkedInText(copy)}
         </p>
       )}
 
