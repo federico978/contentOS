@@ -67,7 +67,7 @@ export function Sidebar({ role }: Props) {
       {/* Nav */}
       <nav className="flex flex-1 flex-col gap-0.5">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href || (href !== '/posts' && pathname.startsWith(href))
+          const isActive = pathname === href || (href !== '/posts' && href !== '/review' && pathname.startsWith(href))
           return (
             <Link
               key={href}
