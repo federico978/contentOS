@@ -181,19 +181,6 @@ export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null
             </button>
           </div>
 
-          {/* Vote badge */}
-          {myVote && (
-            <div className={cn(
-              'absolute right-2.5 top-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-full shadow-md',
-              myVote === 'approved' ? 'bg-emerald-500' : 'bg-red-500',
-            )}>
-              {myVote === 'approved'
-                ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-                : <X     className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-              }
-            </div>
-          )}
-
           {media && isVideo(media) ? (
             playing ? (
               <video
