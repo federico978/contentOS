@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
 
-  // Use x-forwarded-host so the origin is correct on Vercel
   const forwardedHost  = request.headers.get('x-forwarded-host')
   const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https'
   const origin = forwardedHost
@@ -20,14 +19,28 @@ export async function GET(request: NextRequest) {
     : requestUrl.origin
 
   if (!code) {
-    console.error('[auth/callback] No code in searchParams')
     return NextResponse.redirect(`${origin}/login?error=auth`)
   }
 
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: Record<string, unknown>) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: Record<string, unknown>) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    },
+  )
 
-  // ── Exchange code for session ─────────────────────────────────────────────
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
   if (exchangeError) {
@@ -69,11 +82,10 @@ export async function GET(request: NextRequest) {
     console.error('[auth/callback] upsert failed:', profileError.message, profileError.code)
   }
 
-  // ── Redirect ──────────────────────────────────────────────────────────────
+  // ── Redirect with role cookie ─────────────────────────────────────────────
   const redirectPath = role === 'reviewer' ? '/review' : '/posts'
   const response = NextResponse.redirect(`${origin}${redirectPath}`)
 
-  // ── Role cookie ───────────────────────────────────────────────────────────
   response.cookies.set('user_role', role, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
