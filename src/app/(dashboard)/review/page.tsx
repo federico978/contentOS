@@ -267,11 +267,22 @@ export default function ReviewPage() {
           )}
         </div>
 
+        {/* Click-outside overlay */}
+        {panelOpen && (
+          <div
+            className="absolute inset-0 z-10"
+            onClick={() => setSelectedPostId(null)}
+          />
+        )}
+
         {/* Sliding panel */}
-        <div className={cn(
-          'absolute right-0 top-0 h-full w-[380px] border-l border-[#E5E5E5] bg-white shadow-[-6px_0_30px_rgba(0,0,0,0.08)] transition-transform duration-300',
-          panelOpen ? 'translate-x-0' : 'translate-x-full',
-        )}>
+        <div
+          className={cn(
+            'absolute right-0 top-0 z-20 h-full w-[380px] border-l border-[#E5E5E5] bg-white shadow-[-6px_0_30px_rgba(0,0,0,0.08)] transition-transform duration-300',
+            panelOpen ? 'translate-x-0' : 'translate-x-full',
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
           {selectedPost && (
             <ReviewPanel
               post={selectedPost}
