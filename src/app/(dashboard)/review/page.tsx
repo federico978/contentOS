@@ -487,7 +487,10 @@ export default function ReviewPage() {
               </div>
             </div>
           ) : viewMode === 'single' ? (
-            <div className="mx-auto flex max-w-[500px] flex-col gap-5">
+            <div className={cn(
+              'mx-auto flex flex-col gap-5',
+              activeTab === 'instagram' ? 'max-w-[420px]' : 'max-w-[500px]',
+            )}>
               {filteredPosts.map((post) => (
                 <Card
                   key={post.id}
@@ -499,7 +502,12 @@ export default function ReviewPage() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
+            <div className={cn(
+              'grid gap-4',
+              activeTab === 'instagram'
+                ? 'grid-cols-3 max-w-[1020px] mx-auto [&>*]:max-w-[320px] [&>*]:mx-auto [&>*]:w-full'
+                : 'grid-cols-3',
+            )}>
               {filteredPosts.map((post) => (
                 <Card
                   key={post.id}
