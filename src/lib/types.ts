@@ -75,6 +75,11 @@ export interface PostWithDetails extends Post {
   media_files: MediaFile[]
 }
 
+export interface ReviewPost extends PostWithDetails {
+  post_approvals: PostApproval[]
+  post_comments: PostComment[]
+}
+
 export interface PostFormData {
   title: string
   copy: string

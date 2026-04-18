@@ -84,15 +84,26 @@ export async function upsertApproval(
 ): Promise<void> {
   const supabase = createClient()
 
-  // Upsert the reviewer's approval (one per reviewer per post)
+  // Upsert the reviewer's vote (one per reviewer per post)
   const { error: apError } = await supabase
     .from('post_approvals')
     .upsert({ post_id: postId, user_id: userId, status, comment }, { onConflict: 'post_id,user_id' })
 
   if (apError) throw new Error(`upsertApproval failed: ${apError.message}`)
 
-  // Update the post's top-level approval_status
-  const nextStatus: ApprovalStatus = status === 'approved' ? 'approved' : 'rejected'
+  // Fetch all votes to compute consensus
+  const { data: allVotes, error: fetchError } = await supabase
+    .from('post_approvals')
+    .select('status')
+    .eq('post_id', postId)
+
+  if (fetchError) throw new Error(`upsertApproval fetch failed: ${fetchError.message}`)
+
+  // Consensus: any rejection → rejected; at least one approval and zero rejections → approved
+  const hasRejected = allVotes?.some((v) => v.status === 'rejected') ?? false
+  const hasApproved = allVotes?.some((v) => v.status === 'approved') ?? false
+  const nextStatus: ApprovalStatus = hasRejected ? 'rejected' : hasApproved ? 'approved' : 'pending'
+
   const { error: postError } = await supabase
     .from('posts')
     .update({ approval_status: nextStatus })

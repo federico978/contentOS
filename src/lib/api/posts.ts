@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { PostFormData, PostWithDetails, Channel, MediaFile, PostStatus } from '@/lib/types'
+import { PostFormData, PostWithDetails, ReviewPost, Channel, MediaFile, PostStatus } from '@/lib/types'
 import { STORAGE_BUCKET } from '@/lib/constants'
 
 export async function fetchChannels(): Promise<Channel[]> {
@@ -27,6 +27,32 @@ export async function fetchPosts(): Promise<PostWithDetails[]> {
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data as PostWithDetails[]) || []
+}
+
+export async function fetchReviewPosts(): Promise<ReviewPost[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      post_channels (
+        *,
+        channel: channels (*)
+      ),
+      media_files (*),
+      post_approvals (
+        *,
+        user_profiles (full_name, email)
+      ),
+      post_comments (
+        *,
+        user_profiles (full_name, email)
+      )
+    `)
+    .eq('status', 'scheduled')
+    .order('scheduled_at', { ascending: true })
+  if (error) throw error
+  return (data as ReviewPost[]) || []
 }
 
 export async function fetchPost(id: string): Promise<PostWithDetails> {
