@@ -1,17 +1,18 @@
-import { createServerClient } from '@supabase/ssr'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants'
+
+export const dynamic = 'force-dynamic'
 
 const ALLOWED_DOMAIN = '@bigsur.energy'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/posts'
 
-  // En Vercel la URL interna puede ser distinta a la pública.
-  // Usar x-forwarded-host para construir el origin correcto en producción.
+  // Use x-forwarded-host so the origin is correct on Vercel
   const forwardedHost  = request.headers.get('x-forwarded-host')
   const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https'
   const origin = forwardedHost
@@ -23,29 +24,10 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=auth`)
   }
 
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
-  // Crear cliente propio (no el compartido de server.ts) para que los
-  // Set-Cookie de la sesión se apliquen correctamente al response.
-  const cookiesToSet: Array<{ name: string; value: string; options: Record<string, unknown> }> = []
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(toSet) {
-          // Guardar las cookies para luego ponerlas en la respuesta redirect
-          toSet.forEach((c) => cookiesToSet.push(c))
-        },
-      },
-    },
-  )
-
-  // ── Intercambiar código por sesión ────────────────────────────────────────
+  // ── Exchange code for session ─────────────────────────────────────────────
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
   if (exchangeError) {
@@ -53,7 +35,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=auth`)
   }
 
-  // ── Obtener usuario ───────────────────────────────────────────────────────
+  // ── Get user ──────────────────────────────────────────────────────────────
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user?.email) {
@@ -63,7 +45,7 @@ export async function GET(request: Request) {
 
   const email = user.email.toLowerCase().trim()
 
-  // ── Verificar dominio ─────────────────────────────────────────────────────
+  // ── Domain check ──────────────────────────────────────────────────────────
   const isAllowed =
     email === SUPER_ADMIN_EMAIL.toLowerCase() || email.endsWith(ALLOWED_DOMAIN)
 
@@ -72,7 +54,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=domain`)
   }
 
-  // ── Upsert perfil ─────────────────────────────────────────────────────────
+  // ── Upsert profile ────────────────────────────────────────────────────────
   const role     = email === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : 'reviewer'
   const fullName = user.user_metadata?.full_name ?? user.user_metadata?.name ?? null
 
@@ -87,16 +69,11 @@ export async function GET(request: Request) {
     console.error('[auth/callback] upsert failed:', profileError.message, profileError.code)
   }
 
-  // ── Redirigir con cookies de sesión ───────────────────────────────────────
-  const redirectUrl = role === 'reviewer' ? `${origin}/review` : `${origin}${next}`
-  const response    = NextResponse.redirect(redirectUrl)
+  // ── Redirect ──────────────────────────────────────────────────────────────
+  const redirectPath = role === 'reviewer' ? '/review' : '/posts'
+  const response = NextResponse.redirect(`${origin}${redirectPath}`)
 
-  // Aplicar las cookies de sesión de Supabase al redirect
-  cookiesToSet.forEach(({ name, value, options }) => {
-    response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
-  })
-
-  // Cookie de rol para el proxy
+  // ── Role cookie ───────────────────────────────────────────────────────────
   response.cookies.set('user_role', role, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
