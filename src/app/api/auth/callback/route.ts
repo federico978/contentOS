@@ -6,9 +6,17 @@ import { SUPER_ADMIN_EMAIL } from '@/lib/constants'
 const ALLOWED_DOMAIN = '@bigsur.energy'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/posts'
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
+  const next = requestUrl.searchParams.get('next') ?? '/posts'
+
+  // En Vercel la URL interna puede ser distinta a la pública.
+  // Usar x-forwarded-host para construir el origin correcto en producción.
+  const forwardedHost  = request.headers.get('x-forwarded-host')
+  const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https'
+  const origin = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : requestUrl.origin
 
   if (!code) {
     console.error('[auth/callback] No code in searchParams')
