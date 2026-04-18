@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import {
   MoreHorizontal, Eye, Pencil, Trash2, Copy, Download,
-  ImageIcon, Play,
+  ImageIcon, Play, ThumbsUp, MessageSquare,
 } from 'lucide-react'
 import { useDraggable } from '@dnd-kit/core'
 import {
@@ -48,6 +48,18 @@ export function PostCard({ post, onHover, onLeave }: Props) {
   const media            = post.media_files?.find((m) => m.type !== 'cover')
   const coverMedia       = post.media_files?.find((m) => m.type === 'cover')
   const activeChannelIds = new Set(post.post_channels.map((pc) => pc.channel_id))
+
+  // Compute real approval status from votes
+  const votes       = post.post_approvals ?? []
+  const voteCount   = votes.length
+  const commentCount = post.post_comments?.length ?? 0
+  const hasApproved = votes.some((v) => v.status === 'approved')
+  const hasRejected = votes.some((v) => v.status === 'rejected')
+  const computedApprovalStatus =
+    hasApproved && hasRejected ? 'mixed'
+    : hasRejected              ? 'rejected'
+    : hasApproved              ? 'approved'
+    :                            'pending'
 
   async function handleDelete() {
     if (!confirm('Delete this post?')) return
@@ -155,7 +167,7 @@ export function PostCard({ post, onHover, onLeave }: Props) {
           {role === 'super_admin' && (
             <div className="absolute right-2 bottom-2 z-10" data-no-dnd="true">
               <ApprovalStatusBadge
-                status={post.approval_status ?? 'pending'}
+                status={computedApprovalStatus}
                 onClick={(e) => { e.stopPropagation(); setShowApprovals(true) }}
               />
             </div>
@@ -250,6 +262,23 @@ export function PostCard({ post, onHover, onLeave }: Props) {
                 </button>
               )
             })}
+            {/* Vote / comment indicators — super_admin only */}
+            {role === 'super_admin' && (voteCount > 0 || commentCount > 0) && (
+              <div className="ml-1 flex items-center gap-1.5">
+                {voteCount > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10.5px] text-neutral-400">
+                    <ThumbsUp className="h-3 w-3" strokeWidth={1.75} />
+                    {voteCount}
+                  </span>
+                )}
+                {commentCount > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10.5px] text-neutral-400">
+                    <MessageSquare className="h-3 w-3" strokeWidth={1.75} />
+                    {commentCount}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col items-start gap-0.5">

@@ -73,6 +73,9 @@ export interface MediaFile {
 export interface PostWithDetails extends Post {
   post_channels: (PostChannel & { channel: Channel | undefined })[]
   media_files: MediaFile[]
+  // Included when fetching for the admin feed (approval badge + counters)
+  post_approvals?: { status: 'approved' | 'rejected' }[]
+  post_comments?:  { id: string }[]
 }
 
 export interface ReviewPost extends PostWithDetails {

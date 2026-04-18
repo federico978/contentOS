@@ -22,7 +22,9 @@ export async function fetchPosts(): Promise<PostWithDetails[]> {
         *,
         channel: channels (*)
       ),
-      media_files (*)
+      media_files (*),
+      post_approvals (status),
+      post_comments (id)
     `)
     .order('created_at', { ascending: false })
   if (error) throw error

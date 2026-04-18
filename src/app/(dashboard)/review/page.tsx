@@ -33,7 +33,8 @@ function channelCopy(post: ReviewPost, slug: ChannelSlug) {
 }
 
 function channelDate(post: ReviewPost, slug: ChannelSlug) {
-  return post.post_channels.find((c) => c.channel?.slug === slug)?.scheduled_at ?? null
+  const pc = post.post_channels.find((c) => c.channel?.slug === slug)
+  return pc?.scheduled_at ?? post.scheduled_at ?? null
 }
 
 function formatChannelDate(date: string | null): string {
@@ -708,8 +709,8 @@ export default function ReviewPage() {
   const filteredPosts = posts
     .filter((p) => p.post_channels.some((pc) => pc.channel?.slug === activeTab))
     .sort((a, b) => {
-      const da = a.post_channels.find((pc) => pc.channel?.slug === activeTab)?.scheduled_at
-      const db = b.post_channels.find((pc) => pc.channel?.slug === activeTab)?.scheduled_at
+      const da = channelDate(a, activeTab)
+      const db = channelDate(b, activeTab)
       if (!da && !db) return 0
       if (!da) return 1
       if (!db) return -1

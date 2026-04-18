@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, CheckCircle, XCircle, Clock, MessageSquare } from 'lucide-react'
+import { X, CheckCircle, XCircle, Clock, MessageSquare, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { PostComment, PostApproval } from '@/lib/types'
 import { getComments, getApprovals } from '@/lib/api/profiles'
@@ -145,13 +145,14 @@ export function ApprovalStatusBadge({
   status,
   onClick,
 }: {
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'mixed'
   onClick: (e: React.MouseEvent) => void
 }) {
   const cfg = {
-    pending:  { label: 'Pendiente', icon: Clock,       color: 'text-neutral-500',  bg: 'bg-neutral-100' },
-    approved: { label: 'Aprobado',  icon: CheckCircle, color: 'text-emerald-600',  bg: 'bg-emerald-50' },
-    rejected: { label: 'Rechazado', icon: XCircle,     color: 'text-red-600',      bg: 'bg-red-50' },
+    pending:  { label: 'Pendiente',      icon: Clock,         color: 'text-neutral-500',  bg: 'bg-neutral-100' },
+    approved: { label: 'Aprobado',       icon: CheckCircle,   color: 'text-emerald-600',  bg: 'bg-emerald-50' },
+    rejected: { label: 'Rechazado',      icon: XCircle,       color: 'text-red-600',      bg: 'bg-red-50' },
+    mixed:    { label: 'Revisión mixta', icon: AlertCircle,   color: 'text-amber-600',    bg: 'bg-amber-50' },
   }[status]
 
   const Icon = cfg.icon
