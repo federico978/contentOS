@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -60,7 +60,12 @@ export function PostEditor({
   const [removeMedia, setRemoveMedia]           = useState(false)
   const [coverFile, setCoverFile]               = useState<File | null>(null)
   const [removeCover, setRemoveCover]           = useState(false)
-  const [saving, setSaving]                     = useState(false)
+  const [saving,          setSaving]          = useState(false)
+  const [autoSaveStatus,  setAutoSaveStatus]  = useState<'idle' | 'pending' | 'saved' | 'error'>('idle')
+  const autoSaveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isInitializedRef    = useRef(false)
+  const savingRef           = useRef(false)
   const [showPreview, setShowPreview]           = useState(false)
   const [userId, setUserId]                     = useState('')
   const [externalMediaUrl, setExternalMediaUrl] = useState(post?.external_media_url ?? '')
@@ -76,7 +81,7 @@ export function PostEditor({
   const existingCoverRef   = useRef<boolean>(false)
   const removeCoverRef     = useRef<boolean>(false)
 
-  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
+  const { register, control, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       title:        post?.title || '',
@@ -108,6 +113,8 @@ export function PostEditor({
           channel_scheduled_at: existing?.scheduled_at ?? null,
         }
       }))
+      // Allow watch subscription to settle before enabling autosave
+      setTimeout(() => { isInitializedRef.current = true }, 0)
     }
     init().catch((err) => console.error('Failed to init post editor:', err instanceof Error ? err.message : err))
   }, [post, setValue])
@@ -139,9 +146,58 @@ export function PostEditor({
     return () => document.removeEventListener('paste', onDocumentPaste)
   }, []) // intentionally empty — reads state via refs
 
+  // ── Autosave ────────────────────────────────────────────────────────────────
+
+  const triggerAutoSave = useCallback(() => {
+    if (!post || !isInitializedRef.current || savingRef.current) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    if (clearStatusTimerRef.current) clearTimeout(clearStatusTimerRef.current)
+    setAutoSaveStatus('pending')
+    autoSaveTimerRef.current = setTimeout(async () => {
+      if (!userId || savingRef.current) return
+      try {
+        const values  = getValues()
+        const payload = { ...values, external_media_url: externalUrlRef.current.trim() || null }
+        const updated = await updatePost(post.id, payload, userId)
+        updateInStore(post.id, updated)
+        setAutoSaveStatus('saved')
+        clearStatusTimerRef.current = setTimeout(() => setAutoSaveStatus('idle'), 2000)
+      } catch (err) {
+        console.error('[PostEditor] autosave failed:', err)
+        setAutoSaveStatus('error')
+      }
+    }, 1500)
+  }, [post, userId, getValues, updateInStore])
+
+  // Watch all form field changes
+  useEffect(() => {
+    const { unsubscribe } = watch(() => triggerAutoSave())
+    return unsubscribe
+  }, [watch, triggerAutoSave])
+
+  // Watch external media URL changes
+  useEffect(() => {
+    triggerAutoSave()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalMediaUrl])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      if (clearStatusTimerRef.current) clearTimeout(clearStatusTimerRef.current)
+    }
+  }, [])
+
+  // ── Manual save ─────────────────────────────────────────────────────────────
+
   async function onSubmit(values: FormValues) {
     if (!userId) return
+    savingRef.current = true
     setSaving(true)
+    // Cancel any pending autosave
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    setAutoSaveStatus('idle')
     try {
       const file    = mediaFile || undefined
       const payload = { ...values, external_media_url: externalMediaUrl.trim() || null }
@@ -176,7 +232,10 @@ export function PostEditor({
         : (err as { message?: string })?.message ?? String(err)
       toast.error(`Error al guardar: ${msg}`)
       console.error('[PostEditor] save failed:', err)
-    } finally { setSaving(false) }
+    } finally {
+      setSaving(false)
+      savingRef.current = false
+    }
   }
 
   const existingMedia = !removeMedia
@@ -237,6 +296,18 @@ export function PostEditor({
         </div>
 
         <div className="flex items-center gap-2">
+          {post && autoSaveStatus !== 'idle' && (
+            <span className={cn(
+              'text-[11.5px] transition-opacity',
+              autoSaveStatus === 'pending' && 'text-neutral-400',
+              autoSaveStatus === 'saved'   && 'text-emerald-600',
+              autoSaveStatus === 'error'   && 'text-red-500',
+            )}>
+              {autoSaveStatus === 'pending' && 'Guardando...'}
+              {autoSaveStatus === 'saved'   && 'Guardado ✓'}
+              {autoSaveStatus === 'error'   && 'Error al guardar'}
+            </span>
+          )}
           {previewPost && (
             <button
               type="button"
