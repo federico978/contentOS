@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import {
   Loader2, X, Send, LayoutList, LayoutGrid,
@@ -35,7 +35,31 @@ function channelDate(post: ReviewPost, slug: ChannelSlug) {
   return post.post_channels.find((c) => c.channel?.slug === slug)?.scheduled_at ?? null
 }
 
-// Card thumbnail — always static; videos show cover or dark placeholder + play icon
+// First-frame extractor for Supabase videos (no cover image available)
+function VideoFirstFrame({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    const v = ref.current
+    if (!v) return
+    function seek() { if (v) v.currentTime = 0.1 }
+    v.addEventListener('loadedmetadata', seek)
+    if (v.readyState >= 1) seek()
+    return () => v.removeEventListener('loadedmetadata', seek)
+  }, [src])
+  return (
+    <video
+      ref={ref}
+      src={src}
+      preload="metadata"
+      muted
+      playsInline
+      className="h-full w-full object-cover"
+      style={{ pointerEvents: 'none' }}
+    />
+  )
+}
+
+// Card thumbnail — always static; videos show cover (or first-frame) + play icon overlay
 function PostMedia({ post }: { post: ReviewPost }) {
   const main  = post.media_files?.find((m) => m.type !== 'cover')
   const cover = post.media_files?.find((m) => m.type === 'cover')
@@ -45,7 +69,7 @@ function PostMedia({ post }: { post: ReviewPost }) {
       <div className="relative h-full w-full">
         {cover
           ? <img src={cover.url} alt="" className="h-full w-full object-cover" />
-          : <div className="h-full w-full bg-neutral-900" />
+          : <VideoFirstFrame src={main.url} />
         }
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
@@ -61,41 +85,54 @@ function PostMedia({ post }: { post: ReviewPost }) {
   return <img src={src} alt="" className="h-full w-full object-cover" />
 }
 
-// Panel media — plays video (Drive iframe or <video>) or shows image, 4:5 ratio
+// Extract Google Drive file ID from any Drive URL format
+function driveFileId(url: string): string | null {
+  const m1 = url.match(/\/file\/d\/([^/?#]+)/)
+  if (m1) return m1[1]
+  const m2 = url.match(/[?&]id=([^&#]+)/)
+  if (m2) return m2[1]
+  return null
+}
+
+// Panel media — Drive iframe, Supabase <video>, or image — 4:5 ratio, above approval buttons
 function PanelMedia({ post }: { post: ReviewPost }) {
   const main  = post.media_files?.find((m) => m.type !== 'cover')
   const cover = post.media_files?.find((m) => m.type === 'cover')
 
-  if (!main && !cover) return null
-
-  if (main?.type === 'video') {
-    const isDrive   = main.url.includes('drive.google.com')
-    const driveUrl  = isDrive
-      ? main.url.replace('/view', '/preview').replace('/edit', '/preview')
-      : null
-
-    return (
-      <div className="w-full overflow-hidden bg-black" style={{ aspectRatio: '4/5' }}>
-        {isDrive ? (
+  // ── Google Drive video (stored in external_media_url) ─────────────────────
+  const extUrl = post.external_media_url ?? ''
+  if (extUrl.includes('drive.google.com')) {
+    const fileId = driveFileId(extUrl)
+    if (fileId) {
+      return (
+        <div className="w-full overflow-hidden bg-black" style={{ aspectRatio: '4/5' }}>
           <iframe
-            src={driveUrl!}
+            src={`https://drive.google.com/file/d/${fileId}/preview`}
             width="100%"
             height="100%"
             allow="autoplay"
             className="border-0"
           />
-        ) : (
-          <video
-            src={main.url}
-            controls
-            poster={cover?.url}
-            className="h-full w-full object-contain"
-          />
-        )}
+        </div>
+      )
+    }
+  }
+
+  // ── Supabase video ────────────────────────────────────────────────────────
+  if (main?.type === 'video') {
+    return (
+      <div className="w-full overflow-hidden bg-black" style={{ aspectRatio: '4/5' }}>
+        <video
+          src={main.url}
+          controls
+          poster={cover?.url}
+          className="h-full w-full object-contain"
+        />
       </div>
     )
   }
 
+  // ── Image ─────────────────────────────────────────────────────────────────
   const src = main?.url ?? cover?.url
   if (!src) return null
   return (
