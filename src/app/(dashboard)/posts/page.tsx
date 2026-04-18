@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Loader2, Upload, ImageIcon } from 'lucide-react'
+import { Plus, Loader2, Upload, ImageIcon, FileDown } from 'lucide-react'
 import { isSameDay } from 'date-fns'
 import {
   DndContext, DragOverlay, DragStartEvent, DragEndEvent,
@@ -16,6 +16,7 @@ import { SidebarInstagramFeed } from '@/components/posts/SidebarInstagramFeed'
 import { SidebarLinkedInFeed } from '@/components/posts/SidebarLinkedInFeed'
 import { SidebarXFeed } from '@/components/posts/SidebarXFeed'
 import { BulkUpload } from '@/components/posts/BulkUpload'
+import { ExportPDFModal } from '@/components/posts/ExportPDFModal'
 import { usePostStore } from '@/store/usePostStore'
 import { fetchPosts, fetchChannels, updatePostScheduledAt, upsertChannelScheduledAt } from '@/lib/api/posts'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,7 @@ export default function PostsPage() {
   const [hoveredPostId, setHoveredPostId] = useState<string | null>(null)
   const [selectedDate,  setSelectedDate]  = useState<string | null>(null)
   const [showBulk,      setShowBulk]      = useState(false)
+  const [showExportPDF, setShowExportPDF] = useState(false)
   const [activePostId,  setActivePostId]  = useState<string | null>(null)
   const [droppedDate,   setDroppedDate]   = useState<string | null>(null)
 
@@ -157,6 +159,19 @@ export default function PostsPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowExportPDF(true)}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium text-[#333333] transition-all duration-150 hover:-translate-y-px active:scale-[0.99]"
+              style={{
+                background: 'rgba(255,255,255,0.7)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(0,0,0,0.12)',
+              }}
+            >
+              <FileDown className="h-3.5 w-3.5" strokeWidth={2} />
+              Exportar PDF
+            </button>
             <button
               onClick={() => setShowBulk(true)}
               className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium text-[#333333] transition-all duration-150 hover:-translate-y-px active:scale-[0.99]"
@@ -296,7 +311,8 @@ export default function PostsPage() {
 
     </DndContext>
 
-    {showBulk && <BulkUpload onClose={() => setShowBulk(false)} />}
+    {showBulk      && <BulkUpload      onClose={() => setShowBulk(false)} />}
+    {showExportPDF && <ExportPDFModal  posts={allPosts} onClose={() => setShowExportPDF(false)} />}
     </>
   )
 }

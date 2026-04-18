@@ -2,24 +2,37 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { CalendarDays, LayoutList, Plus, LogOut, MonitorPlay } from 'lucide-react'
+import { CalendarDays, LayoutList, Plus, LogOut, MonitorPlay, ClipboardCheck, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { UserRole } from '@/lib/types'
 
-const navItems = [
+const ADMIN_NAV = [
   { href: '/posts',    label: 'Posts',    icon: LayoutList },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/preview',  label: 'Preview',  icon: MonitorPlay },
+  { href: '/admin',    label: 'Admin',    icon: ShieldCheck },
 ]
 
-export function Sidebar() {
+const REVIEWER_NAV = [
+  { href: '/review', label: 'Revisar contenido', icon: ClipboardCheck },
+]
+
+interface Props {
+  role: UserRole
+}
+
+export function Sidebar({ role }: Props) {
   const pathname = usePathname()
-  const router = useRouter()
+  const router   = useRouter()
+  const navItems = role === 'super_admin' ? ADMIN_NAV : REVIEWER_NAV
 
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
+    // Clear role cookie
+    document.cookie = 'user_role=; path=/; max-age=0'
     router.push('/login')
     toast.success('Signed out')
   }
@@ -36,13 +49,22 @@ export function Sidebar() {
         <span className="text-[13.5px] font-black tracking-tight text-[#0A0A0A]">ContentOS</span>
       </div>
 
-      {/* New post */}
-      <Link href="/posts/new" className="mb-4">
-        <div className="flex items-center justify-center gap-1.5 rounded-full bg-[#111111] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:bg-neutral-800 hover:-translate-y-px active:scale-[0.99]" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-          New Post
+      {/* New post — only for super_admin */}
+      {role === 'super_admin' && (
+        <Link href="/posts/new" className="mb-4">
+          <div className="flex items-center justify-center gap-1.5 rounded-full bg-[#111111] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:bg-neutral-800 hover:-translate-y-px active:scale-[0.99]" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+            New Post
+          </div>
+        </Link>
+      )}
+
+      {/* Role badge */}
+      {role === 'reviewer' && (
+        <div className="mb-4 rounded-lg bg-neutral-200/60 px-2.5 py-2 text-center">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Reviewer</span>
         </div>
-      </Link>
+      )}
 
       {/* Nav */}
       <nav className="flex flex-1 flex-col gap-0.5">

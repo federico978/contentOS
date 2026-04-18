@@ -20,6 +20,8 @@ import { ChannelIcon } from '@/components/ui/channel-icon'
 import { cn } from '@/lib/utils'
 import { PreviewModal } from '@/components/previews/PreviewModal'
 import { DuplicateModal } from './DuplicateModal'
+import { ApprovalsModal, ApprovalStatusBadge } from './ApprovalsModal'
+import { useProfileStore } from '@/store/useProfileStore'
 
 const CHANNEL_SLUGS = ['instagram', 'linkedin', 'x'] as const
 
@@ -31,8 +33,10 @@ interface Props {
 
 export function PostCard({ post, onHover, onLeave }: Props) {
   const { removePost, openPost, patchPost, channels: allChannels } = usePostStore()
+  const role = useProfileStore((s) => s.role)
   const [showPreview,    setShowPreview]    = useState(false)
   const [showDuplicate,  setShowDuplicate]  = useState(false)
+  const [showApprovals,  setShowApprovals]  = useState(false)
   const [deleting,       setDeleting]       = useState(false)
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -147,6 +151,16 @@ export function PostCard({ post, onHover, onLeave }: Props) {
             </div>
           )}
 
+          {/* Approval badge — super_admin only */}
+          {role === 'super_admin' && (
+            <div className="absolute right-2 bottom-2 z-10" data-no-dnd="true">
+              <ApprovalStatusBadge
+                status={post.approval_status ?? 'pending'}
+                onClick={(e) => { e.stopPropagation(); setShowApprovals(true) }}
+              />
+            </div>
+          )}
+
           {/* Status badge — hidden for drafts */}
           {post.status !== 'draft' && (
             <div className="absolute left-2 top-2">
@@ -256,6 +270,13 @@ export function PostCard({ post, onHover, onLeave }: Props) {
 
       {showPreview   && <PreviewModal    post={post} onClose={() => setShowPreview(false)} />}
       {showDuplicate && <DuplicateModal  post={post} onClose={() => setShowDuplicate(false)} />}
+      {showApprovals && (
+        <ApprovalsModal
+          postId={post.id}
+          postTitle={post.title || 'Untitled'}
+          onClose={() => setShowApprovals(false)}
+        />
+      )}
     </>
   )
 }

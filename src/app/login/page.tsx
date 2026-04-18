@@ -1,8 +1,13 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export default function LoginPage() {
+function LoginContent() {
+  const searchParams = useSearchParams()
+  const error = searchParams.get('error')
+
   async function signInWithGoogle() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
@@ -12,6 +17,13 @@ export default function LoginPage() {
       },
     })
   }
+
+  const errorMessage =
+    error === 'domain'
+      ? 'Solo usuarios de BigSur Energy pueden acceder a esta plataforma.'
+      : error === 'auth'
+      ? 'Error de autenticación. Por favor intentá de nuevo.'
+      : null
 
   return (
     <div className="flex h-screen items-center justify-center bg-[#F2F2F2]">
@@ -37,6 +49,13 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Error banner */}
+          {errorMessage && (
+            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5">
+              <p className="text-[12.5px] text-red-600">{errorMessage}</p>
+            </div>
+          )}
+
           <button
             onClick={signInWithGoogle}
             className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#D9D9D9] bg-white px-4 py-2.5 text-[13.5px] font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:border-neutral-400 hover:-translate-y-px active:scale-[0.99]"
@@ -56,6 +75,14 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   )
 }
 

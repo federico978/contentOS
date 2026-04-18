@@ -13,3 +13,5 @@ export const STATUS_CONFIG: Record<PostStatus, { label: string; color: string; d
 }
 
 export const STORAGE_BUCKET = 'media'
+
+export const SUPER_ADMIN_EMAIL = 'fedeperel1@gmail.com'

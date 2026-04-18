@@ -290,10 +290,11 @@ export function BulkUpload({ onClose }: { onClose: () => void }) {
           scheduled_at:       row.date ? new Date(row.date + 'T12:00:00').toISOString() : null,
           external_media_url: null,
           channels:           allChannels.map((ch) => ({
-            channel_id:    ch.id,
-            slug:          ch.slug as ChannelSlug,
-            enabled:       row.channelIds.includes(ch.id),
-            copy_override: '',
+            channel_id:           ch.id,
+            slug:                 ch.slug as ChannelSlug,
+            enabled:              row.channelIds.includes(ch.id),
+            copy_override:        '',
+            channel_scheduled_at: null,
           })),
         }
         const created = await createPost(formData, userId, fileObj?.file)

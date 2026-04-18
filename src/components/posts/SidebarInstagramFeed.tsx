@@ -1,8 +1,9 @@
 'use client'
 
-import { Grid3X3, ImageIcon, Play, VideoIcon } from 'lucide-react'
+import { Grid3X3, ImageIcon, Play } from 'lucide-react'
 import { PostWithDetails } from '@/lib/types'
 import { BigSurAvatar } from '@/components/ui/bigsur-avatar'
+import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
 
 // Phone dimensions (original, before scaling)
 const PHONE_W = 390
@@ -87,7 +88,7 @@ export function SidebarInstagramFeed({ posts, onHover }: Props) {
               >
                 {media ? (
                   media.type === 'video' ? (
-                    // No video element — show cover if available, else neutral placeholder
+                    // Local video — show cover if available, else first frame via VideoThumbnail
                     coverMedia ? (
                       <>
                         <img src={coverMedia.url} alt={post.title} className="h-full w-full object-cover" />
@@ -96,9 +97,15 @@ export function SidebarInstagramFeed({ posts, onHover }: Props) {
                         </div>
                       </>
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-neutral-200">
-                        <VideoIcon className="h-5 w-5 text-neutral-400" />
-                      </div>
+                      <>
+                        <VideoThumbnail
+                          src={media.url}
+                          className="h-full w-full object-cover pointer-events-none"
+                        />
+                        <div className="absolute right-1 top-1 flex items-center justify-center rounded-full bg-black/40 p-0.5">
+                          <Play className="h-2.5 w-2.5 fill-white text-white" />
+                        </div>
+                      </>
                     )
                   ) : (
                     <img src={media.url} alt={post.title} className="h-full w-full object-cover" />

@@ -1,6 +1,35 @@
 export type PostStatus = 'draft' | 'scheduled' | 'published'
 export type ChannelSlug = 'instagram' | 'linkedin' | 'x'
 export type MediaType = 'image' | 'video' | 'cover'
+export type UserRole = 'super_admin' | 'reviewer'
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+export interface UserProfile {
+  id: string
+  email: string | null
+  full_name: string | null
+  role: UserRole
+  created_at: string
+}
+
+export interface PostComment {
+  id: string
+  post_id: string
+  user_id: string
+  content: string
+  created_at: string
+  user_profiles?: { email: string | null; full_name: string | null }
+}
+
+export interface PostApproval {
+  id: string
+  post_id: string
+  user_id: string
+  status: 'approved' | 'rejected'
+  comment: string | null
+  created_at: string
+  user_profiles?: { email: string | null; full_name: string | null }
+}
 
 export interface Post {
   id: string
@@ -8,6 +37,7 @@ export interface Post {
   title: string
   copy: string
   status: PostStatus
+  approval_status?: ApprovalStatus
   scheduled_at: string | null
   parent_post_id: string | null
   external_media_url: string | null

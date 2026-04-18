@@ -1,8 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const ADMIN_ONLY = ['/posts', '/calendar', '/preview', '/admin']
+
 export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  const { pathname } = request.nextUrl
+
+  // Forward pathname so server components can read it via headers()
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', pathname)
+
+  let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +24,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -27,10 +35,11 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
-  const isApiRoute = request.nextUrl.pathname.startsWith('/api')
+  const isAuthRoute   = pathname.startsWith('/login')
+  const isApiRoute    = pathname.startsWith('/api')
   const isPublicRoute = isAuthRoute || isApiRoute
 
+  // ── Auth guard ────────────────────────────────────────────────────────────
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -38,6 +47,26 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/posts'
+    return NextResponse.redirect(url)
+  }
+
+  // ── Role-based routing (uses cookie set during login) ─────────────────────
+  const role = request.cookies.get('user_role')?.value
+
+  if (role === 'reviewer') {
+    const isAdminPath = ADMIN_ONLY.some(
+      (p) => pathname === p || pathname.startsWith(p + '/'),
+    )
+    if (isAdminPath) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/review'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  if (role === 'super_admin' && (pathname === '/review' || pathname.startsWith('/review/'))) {
     const url = request.nextUrl.clone()
     url.pathname = '/posts'
     return NextResponse.redirect(url)

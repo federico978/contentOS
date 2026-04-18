@@ -32,7 +32,7 @@ export function MediaUpload({
   const [preview, setPreview]       = useState<string | null>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
 
-  const accept = imagesOnly
+  const accept: Record<string, string[]> = imagesOnly
     ? { 'image/*': [] }
     : { 'image/*': [], 'video/*': [] }
 
