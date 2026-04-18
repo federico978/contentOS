@@ -10,12 +10,16 @@ function LoginContent() {
 
   async function signInWithGoogle() {
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/api/auth/callback`,
       },
     })
+    if (error) {
+      console.error('[login] signInWithOAuth error:', error.message)
+      window.location.href = '/login?error=auth'
+    }
   }
 
   const errorMessage =
