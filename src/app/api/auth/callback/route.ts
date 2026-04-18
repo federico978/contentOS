@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
 
-  const forwardedHost  = request.headers.get('x-forwarded-host')
+  const forwardedHost = request.headers.get('x-forwarded-host')
   const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https'
   const origin = forwardedHost
     ? `${forwardedProto}://${forwardedHost}`
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
           cookieStore.set({ name, value: '', ...options })
         },
       },
-    },
+    }
   )
 
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=auth`)
   }
 
-  // ── Get user ──────────────────────────────────────────────────────────────
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user?.email) {
@@ -57,41 +56,36 @@ export async function GET(request: NextRequest) {
   }
 
   const email = user.email.toLowerCase().trim()
-
-  // ── Domain check ──────────────────────────────────────────────────────────
-  const isAllowed =
-    email === SUPER_ADMIN_EMAIL.toLowerCase() || email.endsWith(ALLOWED_DOMAIN)
+  const isAllowed = email === SUPER_ADMIN_EMAIL.toLowerCase() || email.endsWith(ALLOWED_DOMAIN)
 
   if (!isAllowed) {
     await supabase.auth.signOut()
     return NextResponse.redirect(`${origin}/login?error=domain`)
   }
 
-  // ── Upsert profile ────────────────────────────────────────────────────────
-  const role     = email === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : 'reviewer'
+  const role = email === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : 'reviewer'
   const fullName = user.user_metadata?.full_name ?? user.user_metadata?.name ?? null
 
   const { error: profileError } = await supabase
     .from('user_profiles')
     .upsert(
       { id: user.id, email, full_name: fullName, role },
-      { onConflict: 'id', ignoreDuplicates: false },
+      { onConflict: 'id', ignoreDuplicates: false }
     )
 
   if (profileError) {
     console.error('[auth/callback] upsert failed:', profileError.message, profileError.code)
   }
 
-  // ── Redirect with role cookie ─────────────────────────────────────────────
   const redirectPath = role === 'reviewer' ? '/review' : '/posts'
   const response = NextResponse.redirect(`${origin}${redirectPath}`)
 
   response.cookies.set('user_role', role, {
     httpOnly: true,
-    secure:   process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    path:     '/',
-    maxAge:   60 * 60 * 24 * 30,
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
   })
 
   return response
