@@ -700,7 +700,15 @@ export default function ReviewPage() {
   useEffect(() => {
     async function load() {
       setLoading(true)
-      try { setPosts(await fetchReviewPosts()) }
+      try {
+        const result = await fetchReviewPosts()
+        if (result.length > 0) {
+          const first = result[0]
+          console.log('[review] first post scheduled_at:', first.scheduled_at)
+          console.log('[review] first post post_channels:', JSON.stringify(first.post_channels, null, 2))
+        }
+        setPosts(result)
+      }
       finally { setLoading(false) }
     }
     load()
