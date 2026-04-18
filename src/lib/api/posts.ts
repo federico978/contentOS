@@ -64,18 +64,12 @@ export async function fetchReviewPosts(): Promise<ReviewPost[]> {
     .eq('status', 'scheduled')
     .order('scheduled_at', { ascending: true })
 
-  console.log('[fetchReviewPosts] error:', error)
   console.log('[fetchReviewPosts] rows returned:', data?.length ?? 0)
   if (data?.length) {
     const first = data[0]
-    console.log('[fetchReviewPosts] first post:', {
-      id:             first.id,
-      status:         first.status,
-      post_channels:  first.post_channels,
-      media_files:    first.media_files,
-      post_approvals: first.post_approvals,
-      post_comments:  first.post_comments,
-    })
+    console.log('[DEBUG] post.scheduled_at =', first.scheduled_at)
+    console.log('[DEBUG] post.status =', first.status)
+    console.log('[DEBUG] post_channels =', JSON.stringify(first.post_channels, null, 2))
   }
 
   if (error) throw error
