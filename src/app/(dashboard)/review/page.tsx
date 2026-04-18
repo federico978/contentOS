@@ -478,19 +478,19 @@ export default function ReviewPage() {
       </div>
 
       {/* ── Channel tabs ── */}
-      <div className="flex shrink-0 border-b border-[#E5E5E5] px-6">
+      <div className="flex shrink-0 justify-center border-b border-[#E5E5E5]">
         {CHANNEL_TABS.map(({ slug, label }) => (
           <button
             key={slug}
             onClick={() => { setActiveTab(slug); setSelectedPostId(null) }}
             className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-[13px] font-medium transition-colors',
+              '-mb-px flex items-center gap-2.5 border-b-2 px-6 py-3.5 text-[15px] font-medium transition-colors',
               activeTab === slug
                 ? 'border-[#0A0A0A] text-[#0A0A0A]'
                 : 'border-transparent text-neutral-400 hover:text-neutral-600',
             )}
           >
-            <ChannelIcon slug={slug} size={14} gray={activeTab !== slug} />
+            <ChannelIcon slug={slug} size={20} gray={activeTab !== slug} />
             {label}
             <span className={cn(
               'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
