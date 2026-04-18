@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 import {
   Loader2, X, Send, LayoutList, LayoutGrid,
   Heart, MessageCircle, Bookmark, Repeat2, ThumbsUp, BarChart2,
@@ -33,6 +34,16 @@ function channelCopy(post: ReviewPost, slug: ChannelSlug) {
 
 function channelDate(post: ReviewPost, slug: ChannelSlug) {
   return post.post_channels.find((c) => c.channel?.slug === slug)?.scheduled_at ?? null
+}
+
+function formatChannelDate(date: string | null): string {
+  if (!date) return 'Sin fecha programada'
+  const d   = new Date(date)
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+  const day   = cap(format(d, 'EEEE', { locale: es }))
+  const num   = format(d, 'd')
+  const month = cap(format(d, 'MMMM', { locale: es }))
+  return `${day} ${num} de ${month}`
 }
 
 const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/g
@@ -208,6 +219,7 @@ function InstagramCard({
           </div>
           <div>
             <p className="text-[12.5px] font-semibold leading-none text-neutral-900">bigsur.energy</p>
+            <p className="mt-0.5 text-[10.5px] text-neutral-400">{formatChannelDate(date)}</p>
           </div>
         </div>
         <MoreHorizontal className="h-5 w-5 text-neutral-800" />
@@ -298,14 +310,7 @@ function LinkedInCard({
         <div className="flex-1 min-w-0">
           <p className="text-[14.5px] font-semibold leading-tight text-neutral-900">BigSur Energy</p>
           <p className="text-[12.5px] leading-tight text-neutral-500">Energy Infrastructure</p>
-          <div className="mt-0.5 flex items-center gap-1 text-neutral-400">
-            <span className="text-[12px]">{date ? format(new Date(date), 'dd MMM') : '—'}</span>
-            <span className="text-[12px]">·</span>
-            {/* Globe icon */}
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-            </svg>
-          </div>
+          <p className="mt-0.5 text-[11.5px] text-neutral-400">{formatChannelDate(date)}</p>
         </div>
         <ChannelIcon slug="linkedin" size={20} />
       </div>
@@ -385,11 +390,8 @@ function XCard({
                   <path d="M7 12.5l3.5 3.5 6.5-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <div className="flex items-center gap-1 text-neutral-500 text-[14px]">
-                <span>@bigsur_energy</span>
-                <span>·</span>
-                <span>{date ? format(new Date(date), 'd MMM') : '—'}</span>
-              </div>
+              <p className="text-[14px] text-neutral-500">@bigsur_energy</p>
+              <p className="text-[11.5px] text-neutral-400">{formatChannelDate(date)}</p>
             </div>
           </div>
           <ChannelIcon slug="x" size={20} />
@@ -504,7 +506,7 @@ function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprova
       {/* Panel header */}
       <div className="flex shrink-0 items-center gap-3 border-b border-[#E5E5E5] px-5 py-4">
         <p className="flex-1 truncate text-[13.5px] font-semibold text-neutral-900">
-          {post.title || 'Post sin título'}
+          {formatChannelDate(channelDate(post, activeChannel))}
         </p>
         <button
           onClick={onClose}
