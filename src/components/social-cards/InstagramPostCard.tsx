@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Play, Check, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -25,18 +26,32 @@ interface Props {
   selected?: boolean
   scheduledDate?: string | null
   myVote?: 'approved' | 'rejected' | null
+  onVote?: (decision: 'approved' | 'rejected') => Promise<void>
 }
 
-export function InstagramPostCard({ post, onClick, selected, scheduledDate = null, myVote }: Props) {
+export function InstagramPostCard({ post, onClick, selected, scheduledDate = null, myVote, onVote }: Props) {
+  const [hovered, setHovered] = useState(false)
+  const [voting,  setVoting]  = useState(false)
+
   const media = post.media_files?.find((m) => m.type !== 'cover')
   const cover = post.media_files?.find((m) => m.type === 'cover')
   const pc    = post.post_channels.find((c) => c.channel?.slug === 'instagram')
   const copy  = pc?.copy_override || post.copy
   const hasMedia = !!(media || cover)
 
+  async function handleVote(decision: 'approved' | 'rejected') {
+    if (!onVote || voting) return
+    setVoting(true)
+    try { await onVote(decision) } finally { setVoting(false) }
+  }
+
+  const showBar = onVote && hasMedia && (hovered || !!myVote)
+
   return (
     <article
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className={cn(
         'cursor-pointer overflow-hidden rounded-2xl bg-white border transition-all duration-200',
         selected
@@ -63,9 +78,48 @@ export function InstagramPostCard({ post, onClick, selected, scheduledDate = nul
       {/* Media — 4:5 */}
       {hasMedia && (
         <div className="relative w-full overflow-hidden bg-neutral-100" style={{ aspectRatio: '4/5' }}>
+
+          {/* Approval overlay bar */}
+          <div
+            className={cn(
+              'absolute inset-x-0 top-0 z-10 flex transition-opacity duration-150',
+              showBar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              disabled={voting}
+              onClick={() => handleVote('approved')}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 py-2 text-[11.5px] font-semibold backdrop-blur-[8px] transition-colors disabled:opacity-60',
+                myVote === 'approved'
+                  ? 'bg-emerald-500/90 text-white'
+                  : 'bg-black/50 text-white/80 hover:bg-emerald-500/80',
+              )}
+            >
+              <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Aprobar
+            </button>
+            <div className="w-px self-stretch bg-white/20" />
+            <button
+              disabled={voting}
+              onClick={() => handleVote('rejected')}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 py-2 text-[11.5px] font-semibold backdrop-blur-[8px] transition-colors disabled:opacity-60',
+                myVote === 'rejected'
+                  ? 'bg-red-500/90 text-white'
+                  : 'bg-black/50 text-white/80 hover:bg-red-500/80',
+              )}
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Rechazar
+            </button>
+          </div>
+
+          {/* Vote badge */}
           {myVote && (
             <div className={cn(
-              'absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-md',
+              'absolute right-2.5 top-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-full shadow-md',
               myVote === 'approved' ? 'bg-emerald-500' : 'bg-red-500',
             )}>
               {myVote === 'approved'
@@ -74,6 +128,7 @@ export function InstagramPostCard({ post, onClick, selected, scheduledDate = nul
               }
             </div>
           )}
+
           {media ? (
             isVideo(media) ? (
               <div className="relative h-full w-full">

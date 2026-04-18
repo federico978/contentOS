@@ -324,26 +324,28 @@ function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprova
 // ── Card wrapper (picks the right shared card per channel) ────────────────────
 
 function Card({
-  post, activeTab, selectedPostId, setSelectedPostId, userId,
+  post, activeTab, selectedPostId, setSelectedPostId, userId, onVote,
 }: {
   post:              ReviewPost
   activeTab:         ChannelSlug
   selectedPostId:    string | null
   setSelectedPostId: (id: string | null) => void
   userId:            string | null
+  onVote:            (post: ReviewPost, decision: 'approved' | 'rejected') => Promise<void>
 }) {
   const selected      = post.id === selectedPostId
   const toggle        = () => setSelectedPostId(selected ? null : post.id)
   const scheduledDate = channelDate(post, activeTab)
   const myVote        = (post.post_approvals ?? []).find((a) => a.user_id === userId)?.status ?? null
+  const handleVote    = (decision: 'approved' | 'rejected') => onVote(post, decision)
 
   if (activeTab === 'instagram') {
-    return <InstagramPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} />
+    return <InstagramPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} />
   }
   if (activeTab === 'linkedin') {
-    return <LinkedInPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} />
+    return <LinkedInPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} />
   }
-  return <XPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} />
+  return <XPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} />
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -410,6 +412,34 @@ export default function ReviewPage() {
 
   function handleApprovalChange(postId: string, approvals: PostApproval[]) {
     setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, post_approvals: approvals } : p))
+  }
+
+  async function handleCardVote(post: ReviewPost, decision: 'approved' | 'rejected') {
+    if (!userId) return
+    const approvals  = post.post_approvals ?? []
+    const myApproval = approvals.find((a) => a.user_id === userId)?.status ?? null
+    if (myApproval === decision) {
+      await deleteApproval(post.id, userId)
+      handleApprovalChange(post.id, approvals.filter((a) => a.user_id !== userId))
+    } else {
+      await upsertApproval(post.id, userId, decision, null)
+      const existing = approvals.find((a) => a.user_id === userId)
+      const next = existing
+        ? approvals.map((a) => (a.user_id === userId ? { ...a, status: decision } : a))
+        : [
+            ...approvals,
+            {
+              id:            `opt-${Date.now()}`,
+              post_id:       post.id,
+              user_id:       userId,
+              status:        decision,
+              comment:       null,
+              created_at:    new Date().toISOString(),
+              user_profiles: { full_name: userName, email: null },
+            },
+          ]
+      handleApprovalChange(post.id, next)
+    }
   }
 
   function handleCommentAdded(postId: string, comment: PostComment) {
@@ -507,6 +537,7 @@ export default function ReviewPage() {
                   selectedPostId={selectedPostId}
                   setSelectedPostId={setSelectedPostId}
                   userId={userId}
+                  onVote={handleCardVote}
                 />
               ))}
             </div>
@@ -525,6 +556,7 @@ export default function ReviewPage() {
                   selectedPostId={selectedPostId}
                   setSelectedPostId={setSelectedPostId}
                   userId={userId}
+                  onVote={handleCardVote}
                 />
               ))}
             </div>

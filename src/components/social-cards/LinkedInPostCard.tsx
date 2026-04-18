@@ -53,23 +53,37 @@ interface Props {
   selected?: boolean
   scheduledDate?: string | null
   myVote?: 'approved' | 'rejected' | null
+  onVote?: (decision: 'approved' | 'rejected') => Promise<void>
 }
 
-export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null, myVote }: Props) {
+export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null, myVote, onVote }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [playing,  setPlaying]  = useState(false)
+  const [hovered,  setHovered]  = useState(false)
+  const [voting,   setVoting]   = useState(false)
 
   const media = post.media_files?.find((m) => m.type !== 'cover')
   const cover = post.media_files?.find((m) => m.type === 'cover')
   const pc    = post.post_channels.find((c) => c.channel?.slug === 'linkedin')
   const copy  = pc?.copy_override || post.copy || ''
 
-  const isLong     = copy.length > TRUNCATE_CHARS
+  const isLong      = copy.length > TRUNCATE_CHARS
   const displayCopy = !expanded && isLong ? copy.slice(0, TRUNCATE_CHARS) : copy
+  const hasMedia    = !!(media || cover)
+
+  async function handleVote(decision: 'approved' | 'rejected') {
+    if (!onVote || voting) return
+    setVoting(true)
+    try { await onVote(decision) } finally { setVoting(false) }
+  }
+
+  const showBar = onVote && hasMedia && (hovered || !!myVote)
 
   return (
     <article
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className={cn(
         'cursor-pointer overflow-hidden rounded-2xl bg-white border transition-all duration-200',
         selected
@@ -127,11 +141,50 @@ export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null
       </div>
 
       {/* Media — image: natural height (no crop); video: aspect-video */}
-      {(media || cover) && (
+      {hasMedia && (
         <div className="relative w-full bg-[#f0f0f0] border-t border-[#E0E0E0]">
+
+          {/* Approval overlay bar */}
+          <div
+            className={cn(
+              'absolute inset-x-0 top-0 z-10 flex transition-opacity duration-150',
+              showBar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              disabled={voting}
+              onClick={() => handleVote('approved')}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 py-2 text-[11.5px] font-semibold backdrop-blur-[8px] transition-colors disabled:opacity-60',
+                myVote === 'approved'
+                  ? 'bg-emerald-500/90 text-white'
+                  : 'bg-black/50 text-white/80 hover:bg-emerald-500/80',
+              )}
+            >
+              <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Aprobar
+            </button>
+            <div className="w-px self-stretch bg-white/20" />
+            <button
+              disabled={voting}
+              onClick={() => handleVote('rejected')}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 py-2 text-[11.5px] font-semibold backdrop-blur-[8px] transition-colors disabled:opacity-60',
+                myVote === 'rejected'
+                  ? 'bg-red-500/90 text-white'
+                  : 'bg-black/50 text-white/80 hover:bg-red-500/80',
+              )}
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Rechazar
+            </button>
+          </div>
+
+          {/* Vote badge */}
           {myVote && (
             <div className={cn(
-              'absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-md',
+              'absolute right-2.5 top-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-full shadow-md',
               myVote === 'approved' ? 'bg-emerald-500' : 'bg-red-500',
             )}>
               {myVote === 'approved'
@@ -140,6 +193,7 @@ export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null
               }
             </div>
           )}
+
           {media && isVideo(media) ? (
             playing ? (
               <video
