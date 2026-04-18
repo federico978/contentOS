@@ -14,7 +14,8 @@ const ADMIN_NAV = [
 ]
 
 const REVIEWER_NAV = [
-  { href: '/review', label: 'Revisar contenido', icon: ClipboardCheck },
+  { href: '/review',            label: 'Revisar contenido', icon: ClipboardCheck },
+  { href: '/reviewer-calendar', label: 'Calendario',        icon: CalendarDays   },
 ]
 
 interface Props {
