@@ -34,15 +34,6 @@ export async function fetchPosts(): Promise<PostWithDetails[]> {
 export async function fetchReviewPosts(): Promise<ReviewPost[]> {
   const supabase = createClient()
 
-  const query = `
-    posts (status=scheduled, order=scheduled_at ASC)
-      ↳ post_channels (*, channel: channels(*))
-      ↳ media_files (*)
-      ↳ post_approvals (*, user_profiles(full_name, email))
-      ↳ post_comments  (*, user_profiles(full_name, email))
-  `
-  console.log('[fetchReviewPosts] query shape:', query)
-
   const { data, error } = await supabase
     .from('posts')
     .select(`
@@ -63,14 +54,6 @@ export async function fetchReviewPosts(): Promise<ReviewPost[]> {
     `)
     .eq('status', 'scheduled')
     .order('scheduled_at', { ascending: true })
-
-  console.log('[fetchReviewPosts] rows returned:', data?.length ?? 0)
-  if (data?.length) {
-    const first = data[0]
-    console.log('[DEBUG] post.scheduled_at =', first.scheduled_at)
-    console.log('[DEBUG] post.status =', first.status)
-    console.log('[DEBUG] post_channels =', JSON.stringify(first.post_channels, null, 2))
-  }
 
   if (error) throw error
   return (data as ReviewPost[]) || []

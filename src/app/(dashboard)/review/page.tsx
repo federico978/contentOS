@@ -5,8 +5,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Loader2, X, Send, LayoutList, LayoutGrid,
-  Heart, MessageCircle, Bookmark, Repeat2, ThumbsUp, BarChart2,
-  CheckCircle, XCircle, CheckCircle2, MoreHorizontal, Play,
+  CheckCircle, XCircle, CheckCircle2, Play,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -14,25 +13,23 @@ import { fetchReviewPosts } from '@/lib/api/posts'
 import { upsertApproval, createComment } from '@/lib/api/profiles'
 import { ReviewPost, PostApproval, PostComment, ChannelSlug } from '@/lib/types'
 import { ChannelIcon } from '@/components/ui/channel-icon'
-import { BigSurAvatar } from '@/components/ui/bigsur-avatar'
+import { InstagramPostCard } from '@/components/social-cards/InstagramPostCard'
+import { LinkedInPostCard } from '@/components/social-cards/LinkedInPostCard'
+import { XPostCard } from '@/components/social-cards/XPostCard'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const CHANNEL_TABS: { slug: ChannelSlug; label: string }[] = [
   { slug: 'instagram', label: 'Instagram' },
   { slug: 'linkedin',  label: 'LinkedIn'  },
-  { slug: 'x',        label: 'X'         },
+  { slug: 'x',         label: 'X'         },
 ]
 
 const VIEW_KEY = 'review-view'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function channelCopy(post: ReviewPost, slug: ChannelSlug) {
-  return post.post_channels.find((c) => c.channel?.slug === slug)?.copy_override || post.copy || ''
-}
-
-function channelDate(post: ReviewPost, slug: ChannelSlug) {
+function channelDate(post: ReviewPost, slug: ChannelSlug): string | null {
   const pc = post.post_channels.find((c) => c.channel?.slug === slug)
   return pc?.scheduled_at ?? post.scheduled_at ?? null
 }
@@ -41,85 +38,7 @@ function formatChannelDate(date: string | null): string {
   if (!date) return 'Sin fecha programada'
   const d   = new Date(date)
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-  const day   = cap(format(d, 'EEEE', { locale: es }))
-  const num   = format(d, 'd')
-  const month = cap(format(d, 'MMMM', { locale: es }))
-  return `${day} ${num} de ${month}`
-}
-
-const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/g
-
-function parseLinkedInText(text: string) {
-  const parts = text.split(URL_RE)
-  return parts.map((part, i) => {
-    if (URL_RE.test(part)) {
-      URL_RE.lastIndex = 0 // reset stateful regex after test()
-      const href = part.startsWith('http') ? part : `https://${part}`
-      return (
-        <a
-          key={i}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          style={{ color: '#0A66C2', fontWeight: 600 }}
-        >
-          {part}
-        </a>
-      )
-    }
-    return part
-  })
-}
-
-// First-frame extractor for Supabase videos (no cover image available)
-function VideoFirstFrame({ src }: { src: string }) {
-  const ref = useRef<HTMLVideoElement>(null)
-  useEffect(() => {
-    const v = ref.current
-    if (!v) return
-    function seek() { if (v) v.currentTime = 0.1 }
-    v.addEventListener('loadedmetadata', seek)
-    if (v.readyState >= 1) seek()
-    return () => v.removeEventListener('loadedmetadata', seek)
-  }, [src])
-  return (
-    <video
-      ref={ref}
-      src={src}
-      preload="metadata"
-      muted
-      playsInline
-      className="h-full w-full object-cover"
-      style={{ pointerEvents: 'none' }}
-    />
-  )
-}
-
-// Card thumbnail — always static; videos show cover (or first-frame) + play icon overlay
-function PostMedia({ post }: { post: ReviewPost }) {
-  const main  = post.media_files?.find((m) => m.type !== 'cover')
-  const cover = post.media_files?.find((m) => m.type === 'cover')
-
-  if (main?.type === 'video') {
-    return (
-      <div className="relative h-full w-full">
-        {cover
-          ? <img src={cover.url} alt="" className="h-full w-full object-cover" />
-          : <VideoFirstFrame src={main.url} />
-        }
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
-            <Play className="h-5 w-5 fill-white text-white ml-0.5" />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const src = main?.url ?? cover?.url
-  if (!src) return null
-  return <img src={src} alt="" className="h-full w-full object-cover" />
+  return `${cap(format(d, 'EEEE', { locale: es }))} ${format(d, 'd')} de ${cap(format(d, 'MMMM', { locale: es }))}`
 }
 
 // Extract Google Drive file ID from any Drive URL format
@@ -131,12 +50,12 @@ function driveFileId(url: string): string | null {
   return null
 }
 
-// Panel media — Drive iframe, Supabase <video>, or image — 4:5 ratio, above approval buttons
+// Panel media — Drive iframe, Supabase <video>, or image
 function PanelMedia({ post, activeChannel }: { post: ReviewPost; activeChannel: ChannelSlug }) {
   const main  = post.media_files?.find((m) => m.type !== 'cover')
   const cover = post.media_files?.find((m) => m.type === 'cover')
 
-  // ── Google Drive video (stored in external_media_url) ─────────────────────
+  // Google Drive video
   const extUrl = post.external_media_url ?? ''
   if (extUrl.includes('drive.google.com')) {
     const fileId = driveFileId(extUrl)
@@ -155,7 +74,7 @@ function PanelMedia({ post, activeChannel }: { post: ReviewPost; activeChannel: 
     }
   }
 
-  // ── Supabase video ────────────────────────────────────────────────────────
+  // Supabase video
   if (main?.type === 'video') {
     return (
       <div className="w-full overflow-hidden bg-black" style={{ aspectRatio: '4/5' }}>
@@ -169,7 +88,7 @@ function PanelMedia({ post, activeChannel }: { post: ReviewPost; activeChannel: 
     )
   }
 
-  // ── Image ─────────────────────────────────────────────────────────────────
+  // Image
   const src = main?.url ?? cover?.url
   if (!src) return null
   if (activeChannel === 'linkedin') {
@@ -183,252 +102,6 @@ function PanelMedia({ post, activeChannel }: { post: ReviewPost; activeChannel: 
     <div className="w-full overflow-hidden" style={{ aspectRatio: '4/5' }}>
       <img src={src} alt="" className="h-full w-full object-cover" />
     </div>
-  )
-}
-
-function hasMedia(post: ReviewPost) {
-  return (post.media_files?.length ?? 0) > 0
-}
-
-// ── Instagram Card ─────────────────────────────────────────────────────────────
-
-function InstagramCard({
-  post, selected, onClick,
-}: { post: ReviewPost; selected: boolean; onClick: () => void }) {
-  const copy = channelCopy(post, 'instagram')
-  const date = channelDate(post, 'instagram')
-  const commentCount = (post.post_comments ?? []).length
-
-  return (
-    <article
-      onClick={onClick}
-      className={cn(
-        'cursor-pointer overflow-hidden rounded-2xl bg-white border transition-all duration-200',
-        selected
-          ? 'border-blue-400 shadow-[0_0_0_3px_rgba(59,130,246,0.15)]'
-          : 'border-[#DBDBDB] shadow-sm hover:shadow-md hover:border-neutral-300',
-      )}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5">
-        <div className="flex items-center gap-2.5">
-          {/* Story ring */}
-          <div className="shrink-0 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2px]">
-            <div className="rounded-full bg-white p-[2px]">
-              <BigSurAvatar size={30} />
-            </div>
-          </div>
-          <div>
-            <p className="text-[12.5px] font-semibold leading-none text-neutral-900">bigsur.energy</p>
-            <p className="mt-0.5 text-[10.5px] text-neutral-400">{formatChannelDate(date)}</p>
-          </div>
-        </div>
-        <MoreHorizontal className="h-5 w-5 text-neutral-800" />
-      </div>
-
-      {/* Square image */}
-      {hasMedia(post) && (
-        <div className="w-full overflow-hidden bg-neutral-100" style={{ aspectRatio: '4/5' }}>
-          <PostMedia post={post} />
-        </div>
-      )}
-
-      {/* Action bar */}
-      <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
-        <div className="flex items-center gap-4">
-          <Heart className="h-[25px] w-[25px] text-neutral-900" strokeWidth={1.5} />
-          <MessageCircle className="h-[25px] w-[25px] text-neutral-900" strokeWidth={1.5} />
-          {/* Instagram share icon */}
-          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" className="text-neutral-900" strokeWidth="1.5">
-            <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <Bookmark className="h-[25px] w-[25px] text-neutral-900" strokeWidth={1.5} />
-      </div>
-
-      {/* Likes */}
-      <div className="px-3 pb-1">
-        <p className="text-[13px] font-semibold text-neutral-900">1.161 Me gusta</p>
-      </div>
-
-      {/* Caption */}
-      {copy && (
-        <div className="px-3 pb-1">
-          <p className="text-[13px] leading-snug text-neutral-900">
-            <span className="font-semibold">bigsur.energy</span>{' '}
-            <span className="whitespace-pre-wrap">{copy}</span>
-          </p>
-        </div>
-      )}
-
-      {/* Comments + date */}
-      <div className="px-3 pb-3 pt-0.5 space-y-0.5">
-        {commentCount > 0 && (
-          <p className="text-[13px] text-neutral-400">Ver los {commentCount} comentarios</p>
-        )}
-        {date && (
-          <p className="text-[10px] uppercase tracking-wide text-neutral-400">
-            {format(new Date(date), 'dd MMM yyyy')}
-          </p>
-        )}
-      </div>
-    </article>
-  )
-}
-
-// LinkedIn shows the full image without cropping — object-contain, height auto
-function LinkedInMedia({ post }: { post: ReviewPost }) {
-  const main  = post.media_files?.find((m) => m.type !== 'cover')
-  const cover = post.media_files?.find((m) => m.type === 'cover')
-  const src   = main?.url ?? cover?.url
-  if (!src) return null
-  return <img src={src} alt="" className="w-full h-auto object-contain block" />
-}
-
-// ── LinkedIn Card ──────────────────────────────────────────────────────────────
-
-function LinkedInCard({
-  post, selected, onClick,
-}: { post: ReviewPost; selected: boolean; onClick: () => void }) {
-  const copy = channelCopy(post, 'linkedin')
-  const date = channelDate(post, 'linkedin')
-
-  return (
-    <article
-      onClick={onClick}
-      className={cn(
-        'cursor-pointer overflow-hidden rounded-2xl bg-white border transition-all duration-200',
-        selected
-          ? 'border-blue-400 shadow-[0_0_0_3px_rgba(59,130,246,0.15)]'
-          : 'border-[#E0E0E0] shadow-sm hover:shadow-md hover:border-neutral-300',
-      )}
-    >
-      {/* Header */}
-      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
-        <div className="shrink-0 overflow-hidden rounded-full border border-[#E0E0E0]">
-          <BigSurAvatar size={48} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[14.5px] font-semibold leading-tight text-neutral-900">BigSur Energy</p>
-          <p className="text-[12.5px] leading-tight text-neutral-500">Energy Infrastructure</p>
-          <p className="mt-0.5 text-[11.5px] text-neutral-400">{formatChannelDate(date)}</p>
-        </div>
-        <ChannelIcon slug="linkedin" size={20} />
-      </div>
-
-      {/* Copy — URLs rendered as LinkedIn-style links */}
-      {copy && (
-        <p className="px-4 pb-3 text-[14px] leading-relaxed text-neutral-900 whitespace-pre-wrap">
-          {parseLinkedInText(copy)}
-        </p>
-      )}
-
-      {/* Image — full width, natural height, no crop */}
-      {hasMedia(post) && (
-        <div className="w-full bg-[#f0f0f0] border-t border-[#E0E0E0]">
-          <LinkedInMedia post={post} />
-        </div>
-      )}
-
-      {/* Social proof */}
-      <div className="flex items-center justify-between border-t border-[#E8E8E8] px-4 py-1.5">
-        <span className="text-[12px] text-neutral-500">👍 ❤️ 247</span>
-        <span className="text-[12px] text-neutral-500">18 comentarios</span>
-      </div>
-
-      {/* Action bar */}
-      <div className="flex items-center border-t border-[#E8E8E8]">
-        {[
-          { icon: ThumbsUp,       label: 'Me gusta'  },
-          { icon: MessageCircle,  label: 'Comentar'  },
-          { icon: Repeat2,        label: 'Compartir' },
-          { icon: Send,           label: 'Enviar'    },
-        ].map(({ icon: Icon, label }) => (
-          <div
-            key={label}
-            className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-neutral-500"
-          >
-            <Icon className="h-[17px] w-[17px]" strokeWidth={1.5} />
-            <span className="text-[12px] font-medium">{label}</span>
-          </div>
-        ))}
-      </div>
-    </article>
-  )
-}
-
-// ── X Card ────────────────────────────────────────────────────────────────────
-
-function XCard({
-  post, selected, onClick,
-}: { post: ReviewPost; selected: boolean; onClick: () => void }) {
-  const copy = channelCopy(post, 'x')
-  const date = channelDate(post, 'x')
-
-  return (
-    <article
-      onClick={onClick}
-      className={cn(
-        'cursor-pointer overflow-hidden rounded-2xl bg-white border transition-all duration-200',
-        selected
-          ? 'border-blue-400 shadow-[0_0_0_3px_rgba(59,130,246,0.15)]'
-          : 'border-[#EFF3F4] shadow-sm hover:shadow-md hover:border-neutral-300',
-      )}
-    >
-      <div className="px-4 pt-3.5 pb-3">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-2.5">
-            <div className="shrink-0 overflow-hidden rounded-full">
-              <BigSurAvatar size={42} />
-            </div>
-            <div>
-              <div className="flex items-center gap-1">
-                <span className="text-[15px] font-bold text-neutral-900">BigSur Energy</span>
-                {/* X verified badge */}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="12" fill="#1D9BF0"/>
-                  <path d="M7 12.5l3.5 3.5 6.5-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <p className="text-[14px] text-neutral-500">@bigsur_energy</p>
-              <p className="text-[11.5px] text-neutral-400">{formatChannelDate(date)}</p>
-            </div>
-          </div>
-          <ChannelIcon slug="x" size={20} />
-        </div>
-
-        {/* Copy */}
-        {copy && (
-          <p className="mt-3 text-[15px] leading-relaxed text-neutral-900 whitespace-pre-wrap">
-            {copy}
-          </p>
-        )}
-
-        {/* Image */}
-        {hasMedia(post) && (
-          <div className="mt-3 aspect-video w-full overflow-hidden rounded-2xl border border-[#EFF3F4] bg-neutral-100">
-            <PostMedia post={post} />
-          </div>
-        )}
-
-        {/* Action bar */}
-        <div className="mt-3 flex items-center justify-between text-neutral-500">
-          {[
-            { icon: MessageCircle, count: '8'   },
-            { icon: Repeat2,       count: '12'  },
-            { icon: Heart,         count: '94'  },
-            { icon: BarChart2,     count: '4.2K' },
-            { icon: Bookmark,      count: null  },
-          ].map(({ icon: Icon, count }, i) => (
-            <div key={i} className="flex items-center gap-1">
-              <Icon className="h-[17px] w-[17px]" strokeWidth={1.5} />
-              {count && <span className="text-[13px]">{count}</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-    </article>
   )
 }
 
@@ -451,11 +124,11 @@ function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprova
 
   useEffect(() => { setCommentText('') }, [post.id])
 
-  const approvals    = post.post_approvals ?? []
-  const myApproval   = approvals.find((a) => a.user_id === userId)?.status ?? null
-  const approved     = approvals.filter((a) => a.status === 'approved')
-  const rejected     = approvals.filter((a) => a.status === 'rejected')
-  const comments     = [...(post.post_comments ?? [])].sort(
+  const approvals  = post.post_approvals ?? []
+  const myApproval = approvals.find((a) => a.user_id === userId)?.status ?? null
+  const approved   = approvals.filter((a) => a.status === 'approved')
+  const rejected   = approvals.filter((a) => a.status === 'rejected')
+  const comments   = [...(post.post_comments ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   )
 
@@ -596,7 +269,6 @@ function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprova
             Comentarios ({comments.length})
           </p>
 
-          {/* Input */}
           <div className="mb-4 flex gap-2">
             <input
               type="text"
@@ -618,7 +290,6 @@ function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprova
             </button>
           </div>
 
-          {/* List */}
           {comments.length === 0 ? (
             <p className="text-[12.5px] text-neutral-400">Sin comentarios aún</p>
           ) : (
@@ -644,22 +315,27 @@ function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprova
   )
 }
 
-// ── Card renderer (picks the right card component per channel) ─────────────────
+// ── Card wrapper (picks the right shared card per channel) ────────────────────
 
 function Card({
   post, activeTab, selectedPostId, setSelectedPostId,
 }: {
-  post:             ReviewPost
-  activeTab:        ChannelSlug
-  selectedPostId:   string | null
+  post:              ReviewPost
+  activeTab:         ChannelSlug
+  selectedPostId:    string | null
   setSelectedPostId: (id: string | null) => void
 }) {
-  const selected = post.id === selectedPostId
-  const toggle   = () => setSelectedPostId(selected ? null : post.id)
+  const selected      = post.id === selectedPostId
+  const toggle        = () => setSelectedPostId(selected ? null : post.id)
+  const scheduledDate = channelDate(post, activeTab)
 
-  if (activeTab === 'instagram') return <InstagramCard post={post} selected={selected} onClick={toggle} />
-  if (activeTab === 'linkedin')  return <LinkedInCard  post={post} selected={selected} onClick={toggle} />
-  return <XCard post={post} selected={selected} onClick={toggle} />
+  if (activeTab === 'instagram') {
+    return <InstagramPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} />
+  }
+  if (activeTab === 'linkedin') {
+    return <LinkedInPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} />
+  }
+  return <XPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} />
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -700,15 +376,7 @@ export default function ReviewPage() {
   useEffect(() => {
     async function load() {
       setLoading(true)
-      try {
-        const result = await fetchReviewPosts()
-        if (result.length > 0) {
-          const first = result[0]
-          console.log('[review] first post scheduled_at:', first.scheduled_at)
-          console.log('[review] first post post_channels:', JSON.stringify(first.post_channels, null, 2))
-        }
-        setPosts(result)
-      }
+      try { setPosts(await fetchReviewPosts()) }
       finally { setLoading(false) }
     }
     load()
@@ -799,7 +467,7 @@ export default function ReviewPage() {
       {/* ── Cards + Panel ── */}
       <div className="relative flex-1 overflow-hidden">
 
-        {/* Scrollable cards area — shrinks when panel is open */}
+        {/* Scrollable cards area */}
         <div className={cn(
           'h-full overflow-y-auto px-6 py-5 transition-[padding] duration-300',
           panelOpen ? 'pr-[400px]' : 'pr-6',

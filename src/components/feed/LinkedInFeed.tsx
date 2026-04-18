@@ -9,15 +9,10 @@ import {
   SortableContext, arrayMove, verticalListSortingStrategy, useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ThumbsUp, MessageSquare, Repeat2, Send, Globe, MoreHorizontal, Play } from 'lucide-react'
 import { PostWithDetails } from '@/lib/types'
 import { BigSurAvatar } from '@/components/ui/bigsur-avatar'
-import { VideoThumbnail } from './VideoThumbnail'
 import { cn } from '@/lib/utils'
-
-const VIDEO_EXT = /\.(mp4|mov|webm|ogg|m4v)(\?.*)?$/i
-const isVideo = (m: { type: string; url: string }) =>
-  m.type === 'video' || VIDEO_EXT.test(m.url)
+import { LinkedInPostCard } from '@/components/social-cards/LinkedInPostCard'
 
 interface Props {
   posts: PostWithDetails[]
@@ -25,7 +20,7 @@ interface Props {
   onPostClick: (id: string) => void
 }
 
-function LinkedInCard({
+function SortableLinkedInCard({
   post,
   onPostClick,
   dragJustEnded,
@@ -37,11 +32,8 @@ function LinkedInCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: post.id })
 
-  const [playing, setPlaying] = useState(false)
-  const media = post.media_files?.find((m) => m.type !== 'cover')
-  const cover = post.media_files?.find((m) => m.type === 'cover')
-  const pc    = post.post_channels.find((c) => c.channel?.slug === 'linkedin')
-  const copy  = pc?.copy_override || post.copy
+  const pc            = post.post_channels.find((c) => c.channel?.slug === 'linkedin')
+  const scheduledDate = pc?.scheduled_at ?? post.scheduled_at ?? null
 
   return (
     <div
@@ -49,82 +41,16 @@ function LinkedInCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       {...attributes}
       {...listeners}
-      onClick={() => {
-        if (dragJustEnded.current) return
-        onPostClick(post.id)
-      }}
-      className={cn(
-        'cursor-pointer rounded-xl border border-[#E5E5E5] bg-white shadow-sm transition-shadow hover:shadow-md',
-        isDragging && 'opacity-30'
-      )}
+      className={cn(isDragging && 'opacity-30')}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between px-4 pt-4 pb-3">
-        <div className="flex items-start gap-2.5">
-          <BigSurAvatar size={40} />
-          <div>
-            <p className="text-[13.5px] font-semibold text-neutral-900 leading-tight">BigSur Energy</p>
-            <p className="text-[11.5px] text-neutral-500 leading-tight">Turning off-grid gas into high-value digital assets · 1st</p>
-            <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-neutral-400">
-              <span>Just now</span><span>·</span><Globe className="h-3 w-3" />
-            </div>
-          </div>
-        </div>
-        <MoreHorizontal className="h-4 w-4 text-neutral-400" />
-      </div>
-
-      {/* Copy */}
-      <div className="px-4 pb-3">
-        <p className="line-clamp-3 text-[13px] leading-relaxed text-neutral-800">
-          {copy || <span className="text-neutral-400 italic">No copy</span>}
-        </p>
-      </div>
-
-      {/* Media */}
-      {(media || cover) && (
-        <div className="w-full overflow-hidden bg-neutral-100">
-          {media && isVideo(media) ? (
-            playing ? (
-              <video src={media.url} className="aspect-video w-full object-cover" autoPlay muted loop playsInline controls />
-            ) : (
-              <div className="relative aspect-video w-full cursor-pointer" onClick={() => setPlaying(true)}>
-                <VideoThumbnail src={media.url} className="aspect-video w-full object-cover" />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/20 transition-colors">
-                  <div className="flex items-center justify-center rounded-full bg-black/50 p-3">
-                    <Play className="h-6 w-6 fill-white text-white" />
-                  </div>
-                </div>
-              </div>
-            )
-          ) : media ? (
-            <img src={media.url} alt={post.title} className="aspect-video w-full object-cover" />
-          ) : cover ? (
-            <img src={cover.url} alt={post.title} className="aspect-video w-full object-cover" />
-          ) : null}
-        </div>
-      )}
-
-      {/* Reactions */}
-      <div className="flex items-center justify-between px-4 py-1.5 text-[11.5px] text-neutral-500">
-        <div className="flex items-center gap-1">
-          <span>❤️👍🎉</span><span>1,234</span>
-        </div>
-        <span>56 comments</span>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center border-t border-[#E5E5E5] px-1 py-1">
-        {[
-          { icon: ThumbsUp, label: 'Like' },
-          { icon: MessageSquare, label: 'Comment' },
-          { icon: Repeat2, label: 'Repost' },
-          { icon: Send, label: 'Send' },
-        ].map(({ icon: Icon, label }) => (
-          <button key={label} className="flex flex-1 items-center justify-center gap-1 py-1.5 text-[11.5px] font-medium text-neutral-500 hover:bg-neutral-50 rounded-md transition-colors">
-            <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />{label}
-          </button>
-        ))}
-      </div>
+      <LinkedInPostCard
+        post={post}
+        scheduledDate={scheduledDate}
+        onClick={() => {
+          if (dragJustEnded.current) return
+          onPostClick(post.id)
+        }}
+      />
     </div>
   )
 }
@@ -188,7 +114,7 @@ export function LinkedInFeed({ posts, onReorder, onPostClick }: Props) {
         <SortableContext items={items.map((p) => p.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-3">
             {items.map((post) => (
-              <LinkedInCard key={post.id} post={post} onPostClick={onPostClick} dragJustEnded={dragJustEnded} />
+              <SortableLinkedInCard key={post.id} post={post} onPostClick={onPostClick} dragJustEnded={dragJustEnded} />
             ))}
           </div>
         </SortableContext>
