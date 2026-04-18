@@ -1,11 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { CalendarDays, LayoutList, Plus, LogOut, MonitorPlay, ClipboardCheck, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
-import { toast } from 'sonner'
 import { UserRole } from '@/lib/types'
 
 const ADMIN_NAV = [
@@ -25,16 +23,15 @@ interface Props {
 
 export function Sidebar({ role }: Props) {
   const pathname = usePathname()
-  const router   = useRouter()
   const navItems = role === 'super_admin' ? ADMIN_NAV : REVIEWER_NAV
 
-  async function handleSignOut() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    // Clear role cookie
-    document.cookie = 'user_role=; path=/; max-age=0'
-    router.push('/login')
-    toast.success('Signed out')
+  function handleSignOut() {
+    // POST to server route so httpOnly cookies are cleared properly
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = '/api/auth/signout'
+    document.body.appendChild(form)
+    form.submit()
   }
 
   return (
