@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import {
   Loader2, X, Send, LayoutList, LayoutGrid,
   Heart, MessageCircle, Bookmark, Repeat2, ThumbsUp, BarChart2,
-  CheckCircle, XCircle, CheckCircle2, MoreHorizontal,
+  CheckCircle, XCircle, CheckCircle2, MoreHorizontal, Play,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -14,7 +14,6 @@ import { upsertApproval, createComment } from '@/lib/api/profiles'
 import { ReviewPost, PostApproval, PostComment, ChannelSlug } from '@/lib/types'
 import { ChannelIcon } from '@/components/ui/channel-icon'
 import { BigSurAvatar } from '@/components/ui/bigsur-avatar'
-import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -36,15 +35,74 @@ function channelDate(post: ReviewPost, slug: ChannelSlug) {
   return post.post_channels.find((c) => c.channel?.slug === slug)?.scheduled_at ?? null
 }
 
+// Card thumbnail — always static; videos show cover or dark placeholder + play icon
 function PostMedia({ post }: { post: ReviewPost }) {
   const main  = post.media_files?.find((m) => m.type !== 'cover')
   const cover = post.media_files?.find((m) => m.type === 'cover')
-  const src   = main?.type === 'video' ? (cover?.url ?? main.url) : (main?.url ?? cover?.url)
-  if (!src) return null
-  if (main?.type === 'video' && !cover) {
-    return <VideoThumbnail src={src} className="h-full w-full object-cover pointer-events-none" />
+
+  if (main?.type === 'video') {
+    return (
+      <div className="relative h-full w-full">
+        {cover
+          ? <img src={cover.url} alt="" className="h-full w-full object-cover" />
+          : <div className="h-full w-full bg-neutral-900" />
+        }
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
+            <Play className="h-5 w-5 fill-white text-white ml-0.5" />
+          </div>
+        </div>
+      </div>
+    )
   }
+
+  const src = main?.url ?? cover?.url
+  if (!src) return null
   return <img src={src} alt="" className="h-full w-full object-cover" />
+}
+
+// Panel media — plays video (Drive iframe or <video>) or shows image, 4:5 ratio
+function PanelMedia({ post }: { post: ReviewPost }) {
+  const main  = post.media_files?.find((m) => m.type !== 'cover')
+  const cover = post.media_files?.find((m) => m.type === 'cover')
+
+  if (!main && !cover) return null
+
+  if (main?.type === 'video') {
+    const isDrive   = main.url.includes('drive.google.com')
+    const driveUrl  = isDrive
+      ? main.url.replace('/view', '/preview').replace('/edit', '/preview')
+      : null
+
+    return (
+      <div className="w-full overflow-hidden bg-black" style={{ aspectRatio: '4/5' }}>
+        {isDrive ? (
+          <iframe
+            src={driveUrl!}
+            width="100%"
+            height="100%"
+            allow="autoplay"
+            className="border-0"
+          />
+        ) : (
+          <video
+            src={main.url}
+            controls
+            poster={cover?.url}
+            className="h-full w-full object-contain"
+          />
+        )}
+      </div>
+    )
+  }
+
+  const src = main?.url ?? cover?.url
+  if (!src) return null
+  return (
+    <div className="w-full overflow-hidden" style={{ aspectRatio: '4/5' }}>
+      <img src={src} alt="" className="h-full w-full object-cover" />
+    </div>
+  )
 }
 
 function hasMedia(post: ReviewPost) {
@@ -381,6 +439,9 @@ function ReviewPanel({ post, userId, userName, onClose, onApprovalChange, onComm
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto divide-y divide-[#F0F0F0]">
+
+        {/* Media preview */}
+        <PanelMedia post={post} />
 
         {/* Revisión */}
         <div className="px-5 py-5">
