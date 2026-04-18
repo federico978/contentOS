@@ -88,7 +88,7 @@ function InstagramCard({
 
       {/* Square image */}
       {hasMedia(post) && (
-        <div className="aspect-square w-full overflow-hidden bg-neutral-100">
+        <div className="w-full overflow-hidden bg-neutral-100" style={{ aspectRatio: '4/5' }}>
           <PostMedia post={post} />
         </div>
       )}
