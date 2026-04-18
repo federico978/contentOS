@@ -111,3 +111,34 @@ export async function upsertApproval(
 
   if (postError) throw new Error(`approval_status update failed: ${postError.message}`)
 }
+
+export async function deleteApproval(postId: string, userId: string): Promise<void> {
+  const supabase = createClient()
+
+  const { error: delError } = await supabase
+    .from('post_approvals')
+    .delete()
+    .eq('post_id', postId)
+    .eq('user_id', userId)
+
+  if (delError) throw new Error(`deleteApproval failed: ${delError.message}`)
+
+  // Recompute consensus after removal
+  const { data: allVotes, error: fetchError } = await supabase
+    .from('post_approvals')
+    .select('status')
+    .eq('post_id', postId)
+
+  if (fetchError) throw new Error(`deleteApproval fetch failed: ${fetchError.message}`)
+
+  const hasRejected = allVotes?.some((v) => v.status === 'rejected') ?? false
+  const hasApproved = allVotes?.some((v) => v.status === 'approved') ?? false
+  const nextStatus: ApprovalStatus = hasRejected ? 'rejected' : hasApproved ? 'approved' : 'pending'
+
+  const { error: postError } = await supabase
+    .from('posts')
+    .update({ approval_status: nextStatus })
+    .eq('id', postId)
+
+  if (postError) throw new Error(`approval_status update after delete failed: ${postError.message}`)
+}

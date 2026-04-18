@@ -1,6 +1,6 @@
 'use client'
 
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Play } from 'lucide-react'
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Play, Check, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -24,9 +24,10 @@ interface Props {
   onClick: () => void
   selected?: boolean
   scheduledDate?: string | null
+  myVote?: 'approved' | 'rejected' | null
 }
 
-export function InstagramPostCard({ post, onClick, selected, scheduledDate = null }: Props) {
+export function InstagramPostCard({ post, onClick, selected, scheduledDate = null, myVote }: Props) {
   const media = post.media_files?.find((m) => m.type !== 'cover')
   const cover = post.media_files?.find((m) => m.type === 'cover')
   const pc    = post.post_channels.find((c) => c.channel?.slug === 'instagram')
@@ -61,7 +62,18 @@ export function InstagramPostCard({ post, onClick, selected, scheduledDate = nul
 
       {/* Media — 4:5 */}
       {hasMedia && (
-        <div className="w-full overflow-hidden bg-neutral-100" style={{ aspectRatio: '4/5' }}>
+        <div className="relative w-full overflow-hidden bg-neutral-100" style={{ aspectRatio: '4/5' }}>
+          {myVote && (
+            <div className={cn(
+              'absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-md',
+              myVote === 'approved' ? 'bg-emerald-500' : 'bg-red-500',
+            )}>
+              {myVote === 'approved'
+                ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+                : <X     className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+              }
+            </div>
+          )}
           {media ? (
             isVideo(media) ? (
               <div className="relative h-full w-full">

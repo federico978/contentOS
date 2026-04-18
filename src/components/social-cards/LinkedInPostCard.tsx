@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ThumbsUp, MessageSquare, Repeat2, Send, Globe, MoreHorizontal, Play } from 'lucide-react'
+import { ThumbsUp, MessageSquare, Repeat2, Send, Globe, MoreHorizontal, Play, Check, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -52,9 +52,10 @@ interface Props {
   onClick: () => void
   selected?: boolean
   scheduledDate?: string | null
+  myVote?: 'approved' | 'rejected' | null
 }
 
-export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null }: Props) {
+export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null, myVote }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [playing,  setPlaying]  = useState(false)
 
@@ -127,7 +128,18 @@ export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null
 
       {/* Media — image: natural height (no crop); video: aspect-video */}
       {(media || cover) && (
-        <div className="w-full bg-[#f0f0f0] border-t border-[#E0E0E0]">
+        <div className="relative w-full bg-[#f0f0f0] border-t border-[#E0E0E0]">
+          {myVote && (
+            <div className={cn(
+              'absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-md',
+              myVote === 'approved' ? 'bg-emerald-500' : 'bg-red-500',
+            )}>
+              {myVote === 'approved'
+                ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+                : <X     className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+              }
+            </div>
+          )}
           {media && isVideo(media) ? (
             playing ? (
               <video

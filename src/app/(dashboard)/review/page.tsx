@@ -10,7 +10,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { fetchReviewPosts } from '@/lib/api/posts'
-import { upsertApproval, createComment } from '@/lib/api/profiles'
+import { upsertApproval, deleteApproval, createComment } from '@/lib/api/profiles'
 import { ReviewPost, PostApproval, PostComment, ChannelSlug } from '@/lib/types'
 import { ChannelIcon } from '@/components/ui/channel-icon'
 import { InstagramPostCard } from '@/components/social-cards/InstagramPostCard'
@@ -140,23 +140,29 @@ function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprova
     if (submitting) return
     setSubmitting(true)
     try {
-      await upsertApproval(post.id, userId, decision, null)
-      const existing = approvals.find((a) => a.user_id === userId)
-      const next = existing
-        ? approvals.map((a) => (a.user_id === userId ? { ...a, status: decision } : a))
-        : [
-            ...approvals,
-            {
-              id:            `opt-${Date.now()}`,
-              post_id:       post.id,
-              user_id:       userId,
-              status:        decision as 'approved' | 'rejected',
-              comment:       null,
-              created_at:    new Date().toISOString(),
-              user_profiles: { full_name: userName, email: null },
-            },
-          ]
-      onApprovalChange(post.id, next)
+      if (myApproval === decision) {
+        // Toggle off: remove the vote
+        await deleteApproval(post.id, userId)
+        onApprovalChange(post.id, approvals.filter((a) => a.user_id !== userId))
+      } else {
+        await upsertApproval(post.id, userId, decision, null)
+        const existing = approvals.find((a) => a.user_id === userId)
+        const next = existing
+          ? approvals.map((a) => (a.user_id === userId ? { ...a, status: decision } : a))
+          : [
+              ...approvals,
+              {
+                id:            `opt-${Date.now()}`,
+                post_id:       post.id,
+                user_id:       userId,
+                status:        decision as 'approved' | 'rejected',
+                comment:       null,
+                created_at:    new Date().toISOString(),
+                user_profiles: { full_name: userName, email: null },
+              },
+            ]
+        onApprovalChange(post.id, next)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -318,24 +324,26 @@ function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprova
 // ── Card wrapper (picks the right shared card per channel) ────────────────────
 
 function Card({
-  post, activeTab, selectedPostId, setSelectedPostId,
+  post, activeTab, selectedPostId, setSelectedPostId, userId,
 }: {
   post:              ReviewPost
   activeTab:         ChannelSlug
   selectedPostId:    string | null
   setSelectedPostId: (id: string | null) => void
+  userId:            string | null
 }) {
   const selected      = post.id === selectedPostId
   const toggle        = () => setSelectedPostId(selected ? null : post.id)
   const scheduledDate = channelDate(post, activeTab)
+  const myVote        = (post.post_approvals ?? []).find((a) => a.user_id === userId)?.status ?? null
 
   if (activeTab === 'instagram') {
-    return <InstagramPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} />
+    return <InstagramPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} />
   }
   if (activeTab === 'linkedin') {
-    return <LinkedInPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} />
+    return <LinkedInPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} />
   }
-  return <XPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} />
+  return <XPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} />
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -498,6 +506,7 @@ export default function ReviewPage() {
                   activeTab={activeTab}
                   selectedPostId={selectedPostId}
                   setSelectedPostId={setSelectedPostId}
+                  userId={userId}
                 />
               ))}
             </div>
@@ -515,6 +524,7 @@ export default function ReviewPage() {
                   activeTab={activeTab}
                   selectedPostId={selectedPostId}
                   setSelectedPostId={setSelectedPostId}
+                  userId={userId}
                 />
               ))}
             </div>

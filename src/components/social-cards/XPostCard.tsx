@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Heart, MessageCircle, Repeat2, BarChart2, Bookmark, Share, MoreHorizontal, Play } from 'lucide-react'
+import { Heart, MessageCircle, Repeat2, BarChart2, Bookmark, Share, MoreHorizontal, Play, Check, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -25,9 +25,10 @@ interface Props {
   onClick: () => void
   selected?: boolean
   scheduledDate?: string | null
+  myVote?: 'approved' | 'rejected' | null
 }
 
-export function XPostCard({ post, onClick, selected, scheduledDate = null }: Props) {
+export function XPostCard({ post, onClick, selected, scheduledDate = null, myVote }: Props) {
   const [playing, setPlaying] = useState(false)
 
   const media = post.media_files?.find((m) => m.type !== 'cover')
@@ -76,7 +77,18 @@ export function XPostCard({ post, onClick, selected, scheduledDate = null }: Pro
 
         {/* Media */}
         {(media || cover) && (
-          <div className="mt-3 overflow-hidden rounded-2xl border border-[#EFF3F4] bg-neutral-100">
+          <div className="relative mt-3 overflow-hidden rounded-2xl border border-[#EFF3F4] bg-neutral-100">
+            {myVote && (
+              <div className={cn(
+                'absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full shadow-md',
+                myVote === 'approved' ? 'bg-emerald-500' : 'bg-red-500',
+              )}>
+                {myVote === 'approved'
+                  ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+                  : <X     className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+                }
+              </div>
+            )}
             {media && isVideo(media) ? (
               playing ? (
                 <video
