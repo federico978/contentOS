@@ -276,19 +276,19 @@ export default function ReviewerCalendarPage() {
       </div>
 
       {/* Channel filter */}
-      <div className="flex shrink-0 items-center gap-1.5 border-b border-[#E5E5E5] px-6 py-2.5">
+      <div className="flex shrink-0 justify-center border-b border-[#E5E5E5]">
         {CHANNEL_FILTERS.map(({ slug, label }) => (
           <button
             key={slug}
             onClick={() => setActiveChannel(slug)}
             className={cn(
-              'flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium transition-colors',
+              '-mb-px flex items-center gap-2.5 border-b-2 px-6 py-3.5 text-[15px] font-medium transition-colors',
               activeChannel === slug
-                ? 'bg-[#0A0A0A] text-white'
-                : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700',
+                ? 'border-[#0A0A0A] text-[#0A0A0A]'
+                : 'border-transparent text-neutral-400 hover:text-neutral-600',
             )}
           >
-            {slug !== 'all' && <ChannelIcon slug={slug as ChannelSlug} size={12} gray={activeChannel !== slug} />}
+            {slug !== 'all' && <ChannelIcon slug={slug as ChannelSlug} size={20} gray={activeChannel !== slug} />}
             {label}
           </button>
         ))}
