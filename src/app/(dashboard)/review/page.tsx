@@ -231,6 +231,15 @@ function InstagramCard({
   )
 }
 
+// LinkedIn shows the full image without cropping — object-contain, height auto
+function LinkedInMedia({ post }: { post: ReviewPost }) {
+  const main  = post.media_files?.find((m) => m.type !== 'cover')
+  const cover = post.media_files?.find((m) => m.type === 'cover')
+  const src   = main?.url ?? cover?.url
+  if (!src) return null
+  return <img src={src} alt="" className="w-full h-auto object-contain block" />
+}
+
 // ── LinkedIn Card ──────────────────────────────────────────────────────────────
 
 function LinkedInCard({
@@ -276,12 +285,10 @@ function LinkedInCard({
         </p>
       )}
 
-      {/* Image — natural height */}
+      {/* Image — full width, natural height, no crop */}
       {hasMedia(post) && (
-        <div className="w-full overflow-hidden bg-neutral-100 border-t border-[#E0E0E0]">
-          <div className="aspect-video w-full">
-            <PostMedia post={post} />
-          </div>
+        <div className="w-full bg-[#f0f0f0] border-t border-[#E0E0E0]">
+          <LinkedInMedia post={post} />
         </div>
       )}
 
