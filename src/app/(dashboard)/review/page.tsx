@@ -120,7 +120,7 @@ function driveFileId(url: string): string | null {
 }
 
 // Panel media — Drive iframe, Supabase <video>, or image — 4:5 ratio, above approval buttons
-function PanelMedia({ post }: { post: ReviewPost }) {
+function PanelMedia({ post, activeChannel }: { post: ReviewPost; activeChannel: ChannelSlug }) {
   const main  = post.media_files?.find((m) => m.type !== 'cover')
   const cover = post.media_files?.find((m) => m.type === 'cover')
 
@@ -160,6 +160,13 @@ function PanelMedia({ post }: { post: ReviewPost }) {
   // ── Image ─────────────────────────────────────────────────────────────────
   const src = main?.url ?? cover?.url
   if (!src) return null
+  if (activeChannel === 'linkedin') {
+    return (
+      <div className="w-full bg-[#f0f0f0]">
+        <img src={src} alt="" className="w-full h-auto object-contain block" />
+      </div>
+    )
+  }
   return (
     <div className="w-full overflow-hidden" style={{ aspectRatio: '4/5' }}>
       <img src={src} alt="" className="h-full w-full object-cover" />
@@ -428,12 +435,13 @@ interface PanelProps {
   post:             ReviewPost
   userId:           string
   userName:         string
+  activeChannel:    ChannelSlug
   onClose:          () => void
   onApprovalChange: (postId: string, approvals: PostApproval[]) => void
   onCommentAdded:   (postId: string, comment: PostComment) => void
 }
 
-function ReviewPanel({ post, userId, userName, onClose, onApprovalChange, onCommentAdded }: PanelProps) {
+function ReviewPanel({ post, userId, userName, activeChannel, onClose, onApprovalChange, onCommentAdded }: PanelProps) {
   const [commentText,    setCommentText]    = useState('')
   const [submitting,     setSubmitting]     = useState(false)
   const [sendingComment, setSendingComment] = useState(false)
@@ -510,7 +518,7 @@ function ReviewPanel({ post, userId, userName, onClose, onApprovalChange, onComm
       <div className="flex-1 overflow-y-auto divide-y divide-[#F0F0F0]">
 
         {/* Media preview */}
-        <PanelMedia post={post} />
+        <PanelMedia post={post} activeChannel={activeChannel} />
 
         {/* Revisión */}
         <div className="px-5 py-5">
@@ -836,6 +844,7 @@ export default function ReviewPage() {
               post={selectedPost}
               userId={userId ?? ''}
               userName={userName}
+              activeChannel={activeTab}
               onClose={() => setSelectedPostId(null)}
               onApprovalChange={handleApprovalChange}
               onCommentAdded={handleCommentAdded}
