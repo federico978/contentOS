@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday,
@@ -156,6 +156,21 @@ export default function ReviewerCalendarPage() {
   const [currentDate,   setCurrentDate]   = useState(new Date())
   const [activeChannel, setActiveChannel] = useState<ChannelSlug | 'all'>('all')
   const [selectedEntry, setSelectedEntry] = useState<CalendarEntry | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const gridRef  = useRef<HTMLDivElement>(null)
+
+  // Close panel on click-outside, but let grid card clicks switch the selection
+  useEffect(() => {
+    if (!selectedEntry) return
+    function onMouseDown(e: MouseEvent) {
+      const target = e.target as Element
+      if (panelRef.current?.contains(target)) return  // inside panel
+      if (gridRef.current?.contains(target)) return   // inside calendar grid
+      setSelectedEntry(null)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [selectedEntry])
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => {
@@ -283,10 +298,13 @@ export default function ReviewerCalendarPage() {
       <div className="relative flex-1 overflow-hidden">
 
         {/* Scrollable grid */}
-        <div className={cn(
-          'h-full overflow-y-auto px-4 pb-4 pt-3 transition-[padding] duration-300',
-          panelOpen ? 'pr-[400px]' : 'pr-4',
-        )}>
+        <div
+          ref={gridRef}
+          className={cn(
+            'h-full overflow-y-auto px-4 pb-4 pt-3 transition-[padding] duration-300',
+            panelOpen ? 'pr-[400px]' : 'pr-4',
+          )}
+        >
           {loading ? (
             <div className="flex h-40 items-center justify-center">
               <Loader2 className="h-4 w-4 animate-spin text-neutral-300" />
@@ -322,21 +340,13 @@ export default function ReviewerCalendarPage() {
           )}
         </div>
 
-        {/* Click-outside overlay */}
-        {panelOpen && (
-          <div
-            className="absolute inset-0 z-10"
-            onClick={() => setSelectedEntry(null)}
-          />
-        )}
-
         {/* Sliding review panel */}
         <div
+          ref={panelRef}
           className={cn(
-            'absolute right-0 top-0 z-20 h-full w-[380px] border-l border-[#E5E5E5] bg-white shadow-[-6px_0_30px_rgba(0,0,0,0.08)] transition-transform duration-300',
+            'absolute right-0 top-0 h-full w-[380px] border-l border-[#E5E5E5] bg-white shadow-[-6px_0_30px_rgba(0,0,0,0.08)] transition-transform duration-300',
             panelOpen ? 'translate-x-0' : 'translate-x-full',
           )}
-          onClick={(e) => e.stopPropagation()}
         >
           {selectedEntry && userId && (
             <ReviewPanel

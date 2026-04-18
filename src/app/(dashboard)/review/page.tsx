@@ -62,6 +62,20 @@ export default function ReviewPage() {
   const [activeTab,      setActiveTab]      = useState<ChannelSlug>('instagram')
   const [viewMode,       setViewMode]       = useState<'single' | 'grid'>('grid')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Close panel on click-outside, but let card clicks switch the selection
+  useEffect(() => {
+    if (!selectedPostId) return
+    function onMouseDown(e: MouseEvent) {
+      const target = e.target as Element
+      if (panelRef.current?.contains(target)) return  // inside panel
+      if (target.closest('article')) return            // inside a card
+      setSelectedPostId(null)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [selectedPostId])
 
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_KEY)
@@ -267,21 +281,13 @@ export default function ReviewPage() {
           )}
         </div>
 
-        {/* Click-outside overlay */}
-        {panelOpen && (
-          <div
-            className="absolute inset-0 z-10"
-            onClick={() => setSelectedPostId(null)}
-          />
-        )}
-
         {/* Sliding panel */}
         <div
+          ref={panelRef}
           className={cn(
-            'absolute right-0 top-0 z-20 h-full w-[380px] border-l border-[#E5E5E5] bg-white shadow-[-6px_0_30px_rgba(0,0,0,0.08)] transition-transform duration-300',
+            'absolute right-0 top-0 h-full w-[380px] border-l border-[#E5E5E5] bg-white shadow-[-6px_0_30px_rgba(0,0,0,0.08)] transition-transform duration-300',
             panelOpen ? 'translate-x-0' : 'translate-x-full',
           )}
-          onClick={(e) => e.stopPropagation()}
         >
           {selectedPost && (
             <ReviewPanel
