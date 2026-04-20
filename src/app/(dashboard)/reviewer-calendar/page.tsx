@@ -84,6 +84,7 @@ function CalendarCard({
 
   return (
     <div
+      data-calendar-card="true"
       onClick={() => onClick(entry)}
       style={{ borderLeftColor: leftColor }}
       className={cn(
@@ -175,16 +176,15 @@ export default function ReviewerCalendarPage() {
   const [activeChannel, setActiveChannel] = useState<ChannelSlug | 'all'>('all')
   const [selectedEntry, setSelectedEntry] = useState<CalendarEntry | null>(null)
   const panelRef  = useRef<HTMLDivElement>(null)
-  const gridRef   = useRef<HTMLDivElement>(null)
   const todayRef  = useRef<HTMLDivElement>(null)
 
-  // Close panel on click-outside, but let grid card clicks switch the selection
+  // Close panel on click-outside; clicking a card switches selection instead of closing
   useEffect(() => {
     if (!selectedEntry) return
     function onMouseDown(e: MouseEvent) {
       const target = e.target as Element
-      if (panelRef.current?.contains(target)) return
-      if (gridRef.current?.contains(target)) return
+      if (panelRef.current?.contains(target)) return           // inside panel → ignore
+      if (target.closest('[data-calendar-card]')) return       // card click → let onClick handle it
       setSelectedEntry(null)
     }
     document.addEventListener('mousedown', onMouseDown)
@@ -303,7 +303,6 @@ export default function ReviewerCalendarPage() {
 
         {/* Scrollable grid */}
         <div
-          ref={gridRef}
           className={cn(
             'h-full overflow-y-auto pb-4 transition-[padding] duration-300',
             panelOpen ? 'pr-[400px]' : 'pr-4',
