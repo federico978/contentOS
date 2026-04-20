@@ -42,14 +42,16 @@ function Card({
   const scheduledDate = channelDate(post, activeTab)
   const myVote        = (post.post_approvals ?? []).find((a) => a.user_id === userId)?.status ?? null
   const handleVote    = (decision: 'approved' | 'rejected') => onVote(post, decision)
+  const approvals     = post.post_approvals ?? []
+  const comments      = post.post_comments  ?? []
 
   if (activeTab === 'instagram') {
-    return <InstagramPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} />
+    return <InstagramPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} approvals={approvals} comments={comments} />
   }
   if (activeTab === 'linkedin') {
-    return <LinkedInPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} />
+    return <LinkedInPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} approvals={approvals} comments={comments} />
   }
-  return <XPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} />
+  return <XPostCard post={post} onClick={toggle} selected={selected} scheduledDate={scheduledDate} myVote={myVote} onVote={handleVote} approvals={approvals} comments={comments} />
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

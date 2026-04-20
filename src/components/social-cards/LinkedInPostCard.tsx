@@ -5,9 +5,10 @@ import { ThumbsUp, MessageSquare, Repeat2, Send, Globe, MoreHorizontal, Play, Ch
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { PostWithDetails } from '@/lib/types'
+import { PostWithDetails, PostApproval, PostComment } from '@/lib/types'
 import { BigSurAvatar } from '@/components/ui/bigsur-avatar'
 import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
+import { ReviewIndicators } from '@/components/social-cards/ReviewIndicators'
 
 const VIDEO_EXT = /\.(mp4|mov|webm|ogg|m4v)(\?.*)?$/i
 const isVideo = (m: { type: string; url: string }) =>
@@ -54,9 +55,11 @@ interface Props {
   scheduledDate?: string | null
   myVote?: 'approved' | 'rejected' | null
   onVote?: (decision: 'approved' | 'rejected') => Promise<void>
+  approvals?: PostApproval[]
+  comments?: PostComment[]
 }
 
-export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null, myVote, onVote }: Props) {
+export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null, myVote, onVote, approvals, comments }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [playing,  setPlaying]  = useState(false)
   const [hovered,  setHovered]  = useState(false)
@@ -105,7 +108,10 @@ export function LinkedInPostCard({ post, onClick, selected, scheduledDate = null
             <Globe className="h-3 w-3" />
           </div>
         </div>
-        <MoreHorizontal className="h-4 w-4 shrink-0 text-neutral-400" />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <ReviewIndicators approvals={approvals} comments={comments} />
+          <MoreHorizontal className="h-4 w-4 text-neutral-400" />
+        </div>
       </div>
 
       {/* Copy — with "... más" expand/collapse */}

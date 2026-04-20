@@ -5,9 +5,10 @@ import { Heart, MessageCircle, Bookmark, MoreHorizontal, Play, Check, X } from '
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { PostWithDetails } from '@/lib/types'
+import { PostWithDetails, PostApproval, PostComment } from '@/lib/types'
 import { BigSurAvatar } from '@/components/ui/bigsur-avatar'
 import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
+import { ReviewIndicators } from '@/components/social-cards/ReviewIndicators'
 
 const VIDEO_EXT = /\.(mp4|mov|webm|ogg|m4v)(\?.*)?$/i
 const isVideo = (m: { type: string; url: string }) =>
@@ -27,9 +28,11 @@ interface Props {
   scheduledDate?: string | null
   myVote?: 'approved' | 'rejected' | null
   onVote?: (decision: 'approved' | 'rejected') => Promise<void>
+  approvals?: PostApproval[]
+  comments?: PostComment[]
 }
 
-export function InstagramPostCard({ post, onClick, selected, scheduledDate = null, myVote, onVote }: Props) {
+export function InstagramPostCard({ post, onClick, selected, scheduledDate = null, myVote, onVote, approvals, comments }: Props) {
   const [hovered, setHovered] = useState(false)
   const [voting,  setVoting]  = useState(false)
 
@@ -72,7 +75,10 @@ export function InstagramPostCard({ post, onClick, selected, scheduledDate = nul
             <p className="mt-0.5 text-[10px] text-neutral-400">{fmtChannelDate(scheduledDate)}</p>
           </div>
         </div>
-        <MoreHorizontal className="h-4 w-4 text-neutral-800" />
+        <div className="flex items-center gap-1.5">
+          <ReviewIndicators approvals={approvals} comments={comments} />
+          <MoreHorizontal className="h-4 w-4 text-neutral-800" />
+        </div>
       </div>
 
       {/* Media — 4:5 */}
