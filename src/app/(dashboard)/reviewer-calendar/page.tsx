@@ -262,6 +262,13 @@ export default function ReviewerCalendarPage() {
     })
   }
 
+  function handleEntryClick(entry: CalendarEntry) {
+    const key = `${entry.post.id}-${entry.channelSlug}`
+    setSelectedEntry((prev) =>
+      prev && `${prev.post.id}-${prev.channelSlug}` === key ? null : entry,
+    )
+  }
+
   const selectedKey  = selectedEntry ? `${selectedEntry.post.id}-${selectedEntry.channelSlug}` : null
   const panelOpen    = selectedEntry !== null
 
@@ -353,7 +360,7 @@ export default function ReviewerCalendarPage() {
                           inMonth={isSameMonth(day, monthDate)}
                           entries={getEntriesForDay(day)}
                           selectedKey={selectedKey}
-                          onEntryClick={setSelectedEntry}
+                          onEntryClick={handleEntryClick}
                           todayRef={todayRef}
                         />
                       ))}
