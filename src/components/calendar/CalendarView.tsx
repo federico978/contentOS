@@ -172,7 +172,7 @@ function DroppableDay({
   onCardClick: (id: string) => void
   activeChannel: ChannelSlug | 'all'
   onAddClick: () => void
-  todayRef?: React.RefObject<HTMLDivElement>
+  todayRef?: React.RefObject<HTMLDivElement | null>
 }) {
   const isoDay = format(day, 'yyyy-MM-dd')
   const { setNodeRef, isOver } = useDroppable({ id: isoDay })

@@ -122,7 +122,7 @@ function CalendarDay({
   entries:      CalendarEntry[]
   selectedKey:  string | null
   onEntryClick: (entry: CalendarEntry) => void
-  todayRef?:    React.RefObject<HTMLDivElement>
+  todayRef?:    React.RefObject<HTMLDivElement | null>
 }) {
   const visible  = entries.slice(0, 4)
   const overflow = entries.length - 4
