@@ -186,7 +186,7 @@ function DroppableDay({
         ref={setNodeRef}
         className={cn(
           'group relative min-h-28 rounded-lg p-1.5 transition-colors',
-          inMonth ? 'bg-white border border-[#D9D9D9]' : 'bg-transparent',
+          inMonth ? 'bg-white border border-[#D9D9D9]' : 'bg-neutral-50/70 border border-[#E8E8E8]',
           today && 'border-neutral-400 ring-1 ring-neutral-300',
           isOver && inMonth && 'border-blue-300 bg-blue-50/60 ring-1 ring-blue-200',
         )}
