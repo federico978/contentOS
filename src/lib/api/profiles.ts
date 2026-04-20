@@ -62,6 +62,29 @@ export async function createComment(postId: string, userId: string, content: str
   return data as PostComment
 }
 
+export async function updateComment(id: string, userId: string, content: string): Promise<PostComment> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('post_comments')
+    .update({ content })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('*, user_profiles(email, full_name)')
+    .single()
+  if (error) throw new Error(`updateComment failed: ${error.message}`)
+  return data as PostComment
+}
+
+export async function deleteComment(id: string, userId: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('post_comments')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+  if (error) throw new Error(`deleteComment failed: ${error.message}`)
+}
+
 // ── Approvals ─────────────────────────────────────────────────────────────────
 
 export async function getApprovals(postId: string): Promise<PostApproval[]> {

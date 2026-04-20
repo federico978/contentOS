@@ -18,6 +18,7 @@ export interface PostComment {
   user_id: string
   content: string
   created_at: string
+  updated_at?: string
   user_profiles?: { email: string | null; full_name: string | null }
 }
 

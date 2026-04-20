@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Loader2, X, Send, CheckCircle, XCircle, Play } from 'lucide-react'
+import { Loader2, X, Send, CheckCircle, XCircle, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { upsertApproval, deleteApproval, createComment } from '@/lib/api/profiles'
+import { upsertApproval, deleteApproval, createComment, updateComment, deleteComment } from '@/lib/api/profiles'
 import { ReviewPost, PostApproval, PostComment, ChannelSlug } from '@/lib/types'
 
 // ── Exported helpers ──────────────────────────────────────────────────────────
@@ -92,18 +92,160 @@ function PanelMedia({ post, activeChannel }: { post: ReviewPost; activeChannel: 
 
 // ── ReviewPanel ───────────────────────────────────────────────────────────────
 
+// ── CommentItem ───────────────────────────────────────────────────────────────
+
+function CommentItem({
+  comment,
+  isOwn,
+  onUpdate,
+  onDelete,
+}: {
+  comment:  PostComment
+  isOwn:    boolean
+  onUpdate: (id: string, content: string) => Promise<void>
+  onDelete: (id: string) => Promise<void>
+}) {
+  const [hovered,       setHovered]       = useState(false)
+  const [editing,       setEditing]       = useState(false)
+  const [editText,      setEditText]      = useState(comment.content)
+  const [saving,        setSaving]        = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting,      setDeleting]      = useState(false)
+
+  const isEdited = comment.updated_at && comment.updated_at !== comment.created_at
+
+  async function handleSave() {
+    const text = editText.trim()
+    if (!text) return
+    setSaving(true)
+    try {
+      await onUpdate(comment.id, text)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleCancelEdit() {
+    setEditing(false)
+    setEditText(comment.content)
+  }
+
+  async function handleConfirmDelete() {
+    setDeleting(true)
+    try {
+      await onDelete(comment.id)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setConfirmDelete(false) }}
+    >
+      {/* Header row */}
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[12.5px] font-semibold text-neutral-800">
+          {comment.user_profiles?.full_name || comment.user_profiles?.email || 'Reviewer'}
+        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isEdited && (
+            <span className="text-[10.5px] text-neutral-400">(editado)</span>
+          )}
+          <span className="text-[11px] text-neutral-400">
+            {format(new Date(comment.created_at), 'dd/MM HH:mm')}
+          </span>
+          {isOwn && hovered && !editing && !confirmDelete && (
+            <>
+              <button
+                onClick={() => { setEditing(true); setEditText(comment.content) }}
+                className="text-[#9CA3AF] transition-colors hover:text-neutral-600"
+                title="Editar"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-[#9CA3AF] transition-colors hover:text-neutral-600"
+                title="Eliminar"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Body */}
+      {editing ? (
+        <div className="mt-1">
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } }}
+            rows={2}
+            autoFocus
+            className="w-full resize-none rounded-lg border border-[#E5E5E5] bg-neutral-50 px-3 py-2 text-[12.5px] text-neutral-800 focus:border-neutral-300 focus:outline-none"
+          />
+          <div className="mt-1.5 flex gap-1.5">
+            <button
+              onClick={handleSave}
+              disabled={saving || !editText.trim()}
+              className="rounded-md bg-neutral-900 px-2.5 py-1 text-[11.5px] font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50"
+            >
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="rounded-md border border-[#E5E5E5] px-2.5 py-1 text-[11.5px] font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : confirmDelete ? (
+        <div className="mt-1 flex items-center gap-2">
+          <span className="text-[12px] text-neutral-600">¿Eliminar este comentario?</span>
+          <button
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+            className="rounded-md bg-red-500 px-2 py-0.5 text-[11.5px] font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+          >
+            {deleting ? '…' : 'Sí'}
+          </button>
+          <button
+            onClick={() => setConfirmDelete(false)}
+            className="rounded-md border border-[#E5E5E5] px-2 py-0.5 text-[11.5px] font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
+          >
+            No
+          </button>
+        </div>
+      ) : (
+        <p className="mt-0.5 text-[12.5px] leading-snug text-neutral-600">{comment.content}</p>
+      )}
+    </div>
+  )
+}
+
+// ── ReviewPanel ───────────────────────────────────────────────────────────────
+
 export interface ReviewPanelProps {
-  post:             ReviewPost
-  userId:           string
-  userName:         string
-  activeChannel:    ChannelSlug
-  onClose:          () => void
-  onApprovalChange: (postId: string, approvals: PostApproval[]) => void
-  onCommentAdded:   (postId: string, comment: PostComment) => void
+  post:              ReviewPost
+  userId:            string
+  userName:          string
+  activeChannel:     ChannelSlug
+  onClose:           () => void
+  onApprovalChange:  (postId: string, approvals: PostApproval[]) => void
+  onCommentAdded:    (postId: string, comment: PostComment) => void
+  onCommentUpdated?: (postId: string, comment: PostComment) => void
+  onCommentDeleted?: (postId: string, commentId: string) => void
 }
 
 export function ReviewPanel({
-  post, userId, userName, activeChannel, onClose, onApprovalChange, onCommentAdded,
+  post, userId, userName, activeChannel, onClose,
+  onApprovalChange, onCommentAdded, onCommentUpdated, onCommentDeleted,
 }: ReviewPanelProps) {
   const [commentText,    setCommentText]    = useState('')
   const [submitting,     setSubmitting]     = useState(false)
@@ -287,17 +429,19 @@ export function ReviewPanel({
           ) : (
             <div className="space-y-4">
               {comments.map((c) => (
-                <div key={c.id}>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[12.5px] font-semibold text-neutral-800">
-                      {c.user_profiles?.full_name || c.user_profiles?.email || 'Reviewer'}
-                    </span>
-                    <span className="shrink-0 text-[11px] text-neutral-400">
-                      {format(new Date(c.created_at), 'dd/MM HH:mm')}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-[12.5px] leading-snug text-neutral-600">{c.content}</p>
-                </div>
+                <CommentItem
+                  key={c.id}
+                  comment={c}
+                  isOwn={c.user_id === userId}
+                  onUpdate={async (id, content) => {
+                    const updated = await updateComment(id, userId, content)
+                    onCommentUpdated?.(post.id, updated)
+                  }}
+                  onDelete={async (id) => {
+                    await deleteComment(id, userId)
+                    onCommentDeleted?.(post.id, id)
+                  }}
+                />
               ))}
             </div>
           )}

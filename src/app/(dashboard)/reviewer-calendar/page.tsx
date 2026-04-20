@@ -369,6 +369,46 @@ export default function ReviewerCalendarPage() {
     })
   }
 
+  function handleCommentUpdated(postId: string, comment: PostComment) {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, post_comments: p.post_comments.map((c) => c.id === comment.id ? comment : c) }
+          : p,
+      ),
+    )
+    setSelectedEntry((prev) => {
+      if (!prev || prev.post.id !== postId) return prev
+      return {
+        ...prev,
+        post: {
+          ...prev.post,
+          post_comments: prev.post.post_comments.map((c) => c.id === comment.id ? comment : c),
+        },
+      }
+    })
+  }
+
+  function handleCommentDeleted(postId: string, commentId: string) {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, post_comments: p.post_comments.filter((c) => c.id !== commentId) }
+          : p,
+      ),
+    )
+    setSelectedEntry((prev) => {
+      if (!prev || prev.post.id !== postId) return prev
+      return {
+        ...prev,
+        post: {
+          ...prev.post,
+          post_comments: prev.post.post_comments.filter((c) => c.id !== commentId),
+        },
+      }
+    })
+  }
+
   const selectedKey = selectedEntry ? `${selectedEntry.post.id}-${selectedEntry.channelSlug}` : null
   const panelOpen   = selectedEntry !== null
 
@@ -528,6 +568,8 @@ export default function ReviewerCalendarPage() {
               onClose={() => setSelectedEntry(null)}
               onApprovalChange={handleApprovalChange}
               onCommentAdded={handleCommentAdded}
+              onCommentUpdated={handleCommentUpdated}
+              onCommentDeleted={handleCommentDeleted}
             />
           )}
         </div>

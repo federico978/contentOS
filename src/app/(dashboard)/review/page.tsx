@@ -370,6 +370,26 @@ export default function ReviewPage() {
     )
   }
 
+  function handleCommentUpdated(postId: string, comment: PostComment) {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, post_comments: p.post_comments.map((c) => c.id === comment.id ? comment : c) }
+          : p,
+      )
+    )
+  }
+
+  function handleCommentDeleted(postId: string, commentId: string) {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, post_comments: p.post_comments.filter((c) => c.id !== commentId) }
+          : p,
+      )
+    )
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
 
@@ -549,6 +569,8 @@ export default function ReviewPage() {
               onClose={() => setSelectedPostId(null)}
               onApprovalChange={handleApprovalChange}
               onCommentAdded={handleCommentAdded}
+              onCommentUpdated={handleCommentUpdated}
+              onCommentDeleted={handleCommentDeleted}
             />
           )}
         </div>
