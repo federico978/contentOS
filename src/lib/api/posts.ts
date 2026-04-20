@@ -59,6 +59,96 @@ export async function fetchReviewPosts(): Promise<ReviewPost[]> {
   return (data as ReviewPost[]) || []
 }
 
+const HISTORY_PAGE_SIZE = 50
+
+/** Fetch posts scheduled on or after `fromISO` (for the forward-looking calendar). */
+export async function fetchPostsFrom(fromISO: string): Promise<PostWithDetails[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      post_channels (*, channel: channels (*)),
+      media_files (*),
+      post_approvals (status),
+      post_comments (id)
+    `)
+    .gte('scheduled_at', fromISO)
+    .order('scheduled_at', { ascending: true })
+  if (error) throw error
+  return (data as PostWithDetails[]) || []
+}
+
+/** Fetch scheduled posts on or after `fromISO` (reviewer calendar). */
+export async function fetchReviewPostsFrom(fromISO: string): Promise<ReviewPost[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      post_channels (*, channel: channels (*)),
+      media_files (*),
+      post_approvals (*, user_profiles (full_name, email)),
+      post_comments (*, user_profiles (full_name, email))
+    `)
+    .eq('status', 'scheduled')
+    .gte('scheduled_at', fromISO)
+    .order('scheduled_at', { ascending: true })
+  if (error) throw error
+  return (data as ReviewPost[]) || []
+}
+
+/** Paginated history fetch for the admin calendar. */
+export async function fetchPostsHistory(
+  fromISO: string,
+  toISO: string,
+  offset = 0,
+): Promise<{ data: PostWithDetails[]; hasMore: boolean }> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      post_channels (*, channel: channels (*)),
+      media_files (*),
+      post_approvals (status),
+      post_comments (id)
+    `)
+    .gte('scheduled_at', fromISO)
+    .lt('scheduled_at', toISO)
+    .order('scheduled_at', { ascending: false })
+    .range(offset, offset + HISTORY_PAGE_SIZE - 1)
+  if (error) throw error
+  const rows = (data as PostWithDetails[]) || []
+  return { data: rows, hasMore: rows.length === HISTORY_PAGE_SIZE }
+}
+
+/** Paginated history fetch for the reviewer calendar. */
+export async function fetchReviewPostsHistory(
+  fromISO: string,
+  toISO: string,
+  offset = 0,
+): Promise<{ data: ReviewPost[]; hasMore: boolean }> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      post_channels (*, channel: channels (*)),
+      media_files (*),
+      post_approvals (*, user_profiles (full_name, email)),
+      post_comments (*, user_profiles (full_name, email))
+    `)
+    .eq('status', 'scheduled')
+    .gte('scheduled_at', fromISO)
+    .lt('scheduled_at', toISO)
+    .order('scheduled_at', { ascending: false })
+    .range(offset, offset + HISTORY_PAGE_SIZE - 1)
+  if (error) throw error
+  const rows = (data as ReviewPost[]) || []
+  return { data: rows, hasMore: rows.length === HISTORY_PAGE_SIZE }
+}
+
 export async function fetchPost(id: string): Promise<PostWithDetails> {
   const supabase = createClient()
   const { data, error } = await supabase

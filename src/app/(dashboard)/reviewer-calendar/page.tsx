@@ -1,15 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday,
-  addMonths, getDay, format,
+  addMonths, subMonths, subWeeks, getDay, format,
 } from 'date-fns'
-import { ImageIcon } from 'lucide-react'
+import { ImageIcon, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { fetchReviewPosts } from '@/lib/api/posts'
+import { fetchReviewPostsFrom, fetchReviewPostsHistory } from '@/lib/api/posts'
 import { ReviewPost, PostApproval, PostComment, ChannelSlug } from '@/lib/types'
 import { ChannelIcon } from '@/components/ui/channel-icon'
 import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
@@ -31,6 +31,9 @@ const CHANNEL_FILTERS: { slug: ChannelSlug | 'all'; label: string }[] = [
   { slug: 'linkedin',  label: 'LinkedIn'  },
   { slug: 'x',         label: 'X'         },
 ]
+
+// White background (page bg is white for reviewer-calendar)
+const BG = 'oklch(1 0 0)'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -166,6 +169,67 @@ function CalendarDay({
   )
 }
 
+// ── Month section helper ──────────────────────────────────────────────────────
+
+function MonthSection({
+  monthDate,
+  sourcePosts,
+  activeChannel,
+  selectedKey,
+  onEntryClick,
+  todayRef,
+}: {
+  monthDate:    Date
+  sourcePosts:  ReviewPost[]
+  activeChannel: ChannelSlug | 'all'
+  selectedKey:  string | null
+  onEntryClick: (entry: CalendarEntry) => void
+  todayRef:     React.RefObject<HTMLDivElement | null>
+}) {
+  const days = eachDayOfInterval({
+    start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 }),
+    end:   endOfWeek(endOfMonth(monthDate),     { weekStartsOn: 1 }),
+  }).filter((d) => getDay(d) !== 0 && getDay(d) !== 6)
+
+  const monthLabel = `${MONTHS_ES[monthDate.getMonth()]} ${monthDate.getFullYear()}`
+
+  function getEntriesForDay(day: Date): CalendarEntry[] {
+    const entries: CalendarEntry[] = []
+    sourcePosts.forEach((post) => {
+      post.post_channels.forEach((pc) => {
+        const slug = pc.channel?.slug as ChannelSlug | undefined
+        if (!slug) return
+        if (activeChannel !== 'all' && slug !== activeChannel) return
+        const date = pc.scheduled_at ?? post.scheduled_at
+        if (!date || !isSameDay(new Date(date), day)) return
+        entries.push({ post, channelSlug: slug, date })
+      })
+    })
+    return entries
+  }
+
+  return (
+    <div>
+      <div className="sticky top-[44px] z-10 px-4 py-2" style={{ background: BG }}>
+        <span className="text-[13px] font-bold text-[#0A0A0A]">{monthLabel}</span>
+      </div>
+      <div className="grid grid-cols-5 gap-1 px-4 pb-4">
+        {days.map((day) => (
+          <CalendarDay
+            key={day.toISOString()}
+            day={day}
+            inMonth={isSameMonth(day, monthDate)}
+            entries={getEntriesForDay(day)}
+            selectedKey={selectedKey}
+            onEntryClick={onEntryClick}
+            todayRef={todayRef}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ReviewerCalendarPage() {
@@ -175,16 +239,25 @@ export default function ReviewerCalendarPage() {
   const [userName,      setUserName]      = useState<string>('')
   const [activeChannel, setActiveChannel] = useState<ChannelSlug | 'all'>('all')
   const [selectedEntry, setSelectedEntry] = useState<CalendarEntry | null>(null)
-  const panelRef  = useRef<HTMLDivElement>(null)
-  const todayRef  = useRef<HTMLDivElement>(null)
+
+  // History state
+  const [historyPosts,   setHistoryPosts]   = useState<ReviewPost[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyVisible, setHistoryVisible] = useState(false)
+  const [historyHasMore, setHistoryHasMore] = useState(false)
+  const [historyOffset,  setHistoryOffset]  = useState(0)
+
+  const panelRef     = useRef<HTMLDivElement>(null)
+  const todayRef     = useRef<HTMLDivElement | null>(null)
+  const didScrollRef = useRef(false)
 
   // Close panel on click-outside; clicking a card switches selection instead of closing
   useEffect(() => {
     if (!selectedEntry) return
     function onMouseDown(e: MouseEvent) {
       const target = e.target as Element
-      if (panelRef.current?.contains(target)) return           // inside panel → ignore
-      if (target.closest('[data-calendar-card]')) return       // card click → let onClick handle it
+      if (panelRef.current?.contains(target)) return
+      if (target.closest('[data-calendar-card]')) return
       setSelectedEntry(null)
     }
     document.addEventListener('mousedown', onMouseDown)
@@ -205,39 +278,84 @@ export default function ReviewerCalendarPage() {
     })
   }, [])
 
+  // Initial load: only from current week onwards
   useEffect(() => {
     async function load() {
       setLoading(true)
-      try { setPosts(await fetchReviewPosts()) }
-      finally { setLoading(false) }
+      try {
+        const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString()
+        setPosts(await fetchReviewPostsFrom(weekStart))
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
 
-  const today  = new Date()
-  const months = [today, addMonths(today, 1), addMonths(today, 2)]
-
-  function getDaysForMonth(monthDate: Date) {
-    return eachDayOfInterval({
-      start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 }),
-      end:   endOfWeek(endOfMonth(monthDate),     { weekStartsOn: 1 }),
-    }).filter((d) => getDay(d) !== 0 && getDay(d) !== 6)
-  }
-
-  // One entry per (post × channel) pair on a given day
-  function getEntriesForDay(day: Date): CalendarEntry[] {
-    const entries: CalendarEntry[] = []
-    posts.forEach((post) => {
-      post.post_channels.forEach((pc) => {
-        const slug = pc.channel?.slug as ChannelSlug | undefined
-        if (!slug) return
-        if (activeChannel !== 'all' && slug !== activeChannel) return
-        const date = pc.scheduled_at ?? post.scheduled_at
-        if (!date || !isSameDay(new Date(date), day)) return
-        entries.push({ post, channelSlug: slug, date })
+  // Auto-scroll to today after initial load
+  useEffect(() => {
+    if (!loading && !didScrollRef.current) {
+      didScrollRef.current = true
+      requestAnimationFrame(() => {
+        todayRef.current?.scrollIntoView({ block: 'start' })
       })
-    })
-    return entries
+    }
+  }, [loading])
+
+  // ── History helpers ──────────────────────────────────────────────────────────
+  const historyRange = useCallback(() => ({
+    fromISO: subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 8).toISOString(),
+    toISO:   startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString(),
+  }), [])
+
+  const handleLoadHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    try {
+      const { fromISO, toISO } = historyRange()
+      const { data, hasMore } = await fetchReviewPostsHistory(fromISO, toISO, 0)
+      setHistoryPosts(data)
+      setHistoryHasMore(hasMore)
+      setHistoryOffset(data.length)
+      setHistoryVisible(true)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [historyRange])
+
+  const handleHideHistory = useCallback(() => {
+    setHistoryVisible(false)
+    setHistoryPosts([])
+    setHistoryHasMore(false)
+    setHistoryOffset(0)
+  }, [])
+
+  const handleLoadMoreHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    try {
+      const { fromISO, toISO } = historyRange()
+      const { data, hasMore } = await fetchReviewPostsHistory(fromISO, toISO, historyOffset)
+      setHistoryPosts((prev) => [...prev, ...data])
+      setHistoryHasMore(hasMore)
+      setHistoryOffset((prev) => prev + data.length)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [historyRange, historyOffset])
+
+  // ── Derived ──────────────────────────────────────────────────────────────────
+  const today         = new Date()
+  const futureMonths  = [today, addMonths(today, 1), addMonths(today, 2)]
+  const historyMonths = [subMonths(today, 2), subMonths(today, 1)]
+
+  function handleEntryClick(entry: CalendarEntry) {
+    const key = `${entry.post.id}-${entry.channelSlug}`
+    setSelectedEntry((prev) =>
+      prev && `${prev.post.id}-${prev.channelSlug}` === key ? null : entry,
+    )
   }
 
   function handleApprovalChange(postId: string, approvals: PostApproval[]) {
@@ -262,22 +380,41 @@ export default function ReviewerCalendarPage() {
     })
   }
 
-  function handleEntryClick(entry: CalendarEntry) {
-    const key = `${entry.post.id}-${entry.channelSlug}`
-    setSelectedEntry((prev) =>
-      prev && `${prev.post.id}-${prev.channelSlug}` === key ? null : entry,
-    )
-  }
+  const selectedKey = selectedEntry ? `${selectedEntry.post.id}-${selectedEntry.channelSlug}` : null
+  const panelOpen   = selectedEntry !== null
 
-  const selectedKey  = selectedEntry ? `${selectedEntry.post.id}-${selectedEntry.channelSlug}` : null
-  const panelOpen    = selectedEntry !== null
+  const sharedMonthProps = {
+    activeChannel,
+    selectedKey,
+    onEntryClick: handleEntryClick,
+    todayRef,
+  }
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
 
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-[#D9D9D9] px-6 py-3.5">
-        <h1 className="text-[14px] font-black text-[#0A0A0A]">Calendario</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-[14px] font-black text-[#0A0A0A]">Calendario</h1>
+          {historyVisible ? (
+            <button
+              onClick={handleHideHistory}
+              className="rounded-md border border-[#D9D9D9] bg-white px-2.5 py-1 text-[12px] font-medium text-neutral-500 transition-colors hover:bg-neutral-50"
+            >
+              Ocultar historial
+            </button>
+          ) : (
+            <button
+              onClick={handleLoadHistory}
+              disabled={historyLoading}
+              className="flex items-center gap-1.5 rounded-md border border-[#D9D9D9] bg-white px-2.5 py-1 text-[12px] font-medium text-neutral-500 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+            >
+              {historyLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+              Ver historial
+            </button>
+          )}
+        </div>
         <button
           onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
           className="rounded-md border border-[#D9D9D9] bg-white px-2.5 py-1 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
@@ -324,7 +461,7 @@ export default function ReviewerCalendarPage() {
               {/* Sticky weekday labels */}
               <div
                 className="sticky top-0 z-20 mb-1 grid grid-cols-5 gap-1 px-4 pt-3 pb-1"
-                style={{ background: 'oklch(1 0 0)' }}
+                style={{ background: BG }}
               >
                 {WEEKDAYS.map((d) => (
                   <div
@@ -336,38 +473,51 @@ export default function ReviewerCalendarPage() {
                 ))}
               </div>
 
-              {/* 3 month sections */}
-              {months.map((monthDate, mi) => {
-                const days       = getDaysForMonth(monthDate)
-                const monthLabel = `${MONTHS_ES[monthDate.getMonth()]} ${monthDate.getFullYear()}`
-
-                return (
-                  <div key={mi}>
-                    {/* Sticky month title */}
-                    <div
-                      className="sticky top-[44px] z-10 px-4 py-2"
-                      style={{ background: 'oklch(1 0 0)' }}
-                    >
-                      <span className="text-[13px] font-bold text-[#0A0A0A]">{monthLabel}</span>
+              {/* ── History section ── */}
+              {historyVisible && (
+                <>
+                  {historyHasMore && (
+                    <div className="flex justify-center px-4 py-2">
+                      <button
+                        onClick={handleLoadMoreHistory}
+                        disabled={historyLoading}
+                        className="flex items-center gap-1.5 rounded-md border border-[#D9D9D9] bg-white px-3 py-1.5 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                      >
+                        {historyLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                        Cargar más
+                      </button>
                     </div>
+                  )}
 
-                    {/* Day cells */}
-                    <div className="grid grid-cols-5 gap-1 px-4 pb-4">
-                      {days.map((day) => (
-                        <CalendarDay
-                          key={day.toISOString()}
-                          day={day}
-                          inMonth={isSameMonth(day, monthDate)}
-                          entries={getEntriesForDay(day)}
-                          selectedKey={selectedKey}
-                          onEntryClick={handleEntryClick}
-                          todayRef={todayRef}
-                        />
-                      ))}
-                    </div>
+                  {historyMonths.map((monthDate, mi) => (
+                    <MonthSection
+                      key={`h-${mi}`}
+                      monthDate={monthDate}
+                      sourcePosts={historyPosts}
+                      {...sharedMonthProps}
+                    />
+                  ))}
+
+                  {/* Separator */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="h-px flex-1 bg-neutral-200" />
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
+                      Historial
+                    </span>
+                    <div className="h-px flex-1 bg-neutral-200" />
                   </div>
-                )
-              })}
+                </>
+              )}
+
+              {/* ── Future months ── */}
+              {futureMonths.map((monthDate, mi) => (
+                <MonthSection
+                  key={`f-${mi}`}
+                  monthDate={monthDate}
+                  sourcePosts={posts}
+                  {...sharedMonthProps}
+                />
+              ))}
             </>
           )}
         </div>

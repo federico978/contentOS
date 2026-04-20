@@ -1,12 +1,12 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday,
-  addMonths, getDay, format,
+  addMonths, subMonths, getDay, format,
 } from 'date-fns'
-import { Plus, ImageIcon } from 'lucide-react'
+import { Plus, ImageIcon, Loader2 } from 'lucide-react'
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
   pointerWithin, useDraggable, useDroppable, useSensor, useSensors,
@@ -21,7 +21,6 @@ import { usePostStore } from '@/store/usePostStore'
 import { updatePostScheduledAt, upsertChannelScheduledAt } from '@/lib/api/posts'
 import { SmartPointerSensor } from '@/lib/dnd-sensors'
 import { toast } from 'sonner'
-import { useState } from 'react'
 
 const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
 
@@ -35,7 +34,20 @@ const GLASS_BF = {
   WebkitBackdropFilter: 'blur(20px) saturate(180%)',
 } as const
 
+// Background color matching --background in globals.css
+const BG = 'oklch(0.953 0 0)'
+
 type PostEntry = { post: PostWithDetails; date: string }
+
+export type CalendarHistoryConfig = {
+  posts: PostWithDetails[]
+  loading: boolean
+  hasMore: boolean
+  visible: boolean
+  onLoad: () => void
+  onHide: () => void
+  onLoadMore: () => void
+}
 
 function displayCopy(post: PostWithDetails, channelSlug: ChannelSlug | 'all'): string | null {
   if (channelSlug !== 'all') {
@@ -191,7 +203,6 @@ function DroppableDay({
           isOver && inMonth && 'border-blue-300 bg-blue-50/60 ring-1 ring-blue-200',
         )}
       >
-        {/* Day number */}
         <div className={cn(
           'mb-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11.5px] font-medium',
           today    ? 'bg-[#0A0A0A] text-white'
@@ -201,7 +212,6 @@ function DroppableDay({
           {format(day, 'd')}
         </div>
 
-        {/* Mini cards */}
         <div className="space-y-0.5">
           {visible.map((entry) => (
             <DraggableCard
@@ -218,7 +228,6 @@ function DroppableDay({
           )}
         </div>
 
-        {/* Add post button */}
         {inMonth && (
           <button
             onClick={(e) => { e.stopPropagation(); onAddClick() }}
@@ -233,39 +242,35 @@ function DroppableDay({
   )
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-export function CalendarView({
-  posts,
-  activeChannel = 'all',
-  loading = false,
+// ── Month section ─────────────────────────────────────────────────────────────
+function MonthSection({
+  monthDate,
+  sourcePosts,
+  activeChannel,
+  onCardClick,
+  onAddClick,
+  todayRef,
+  bg,
 }: {
-  posts: PostWithDetails[]
-  activeChannel?: ChannelSlug | 'all'
-  loading?: boolean
+  monthDate: Date
+  sourcePosts: PostWithDetails[]
+  activeChannel: ChannelSlug | 'all'
+  onCardClick: (id: string) => void
+  onAddClick: (day: Date) => void
+  todayRef: React.RefObject<HTMLDivElement | null>
+  bg: string
 }) {
-  const { openPost, openNewPost, patchPost } = usePostStore()
-  const todayRef = useRef<HTMLDivElement>(null)
-  const [activePostId, setActivePostId] = useState<string | null>(null)
+  const days = eachDayOfInterval({
+    start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 }),
+    end:   endOfWeek(endOfMonth(monthDate),     { weekStartsOn: 1 }),
+  }).filter((d) => getDay(d) !== 0 && getDay(d) !== 6)
 
-  const sensors = useSensors(
-    useSensor(SmartPointerSensor, { activationConstraint: { distance: 6 } }),
-  )
+  const monthLabel = `${MONTHS_ES[monthDate.getMonth()]} ${monthDate.getFullYear()}`
 
-  const today = new Date()
-  const months = [today, addMonths(today, 1), addMonths(today, 2)]
-
-  function getDaysForMonth(monthDate: Date) {
-    return eachDayOfInterval({
-      start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 }),
-      end:   endOfWeek(endOfMonth(monthDate),     { weekStartsOn: 1 }),
-    }).filter((d) => getDay(d) !== 0 && getDay(d) !== 6)
-  }
-
-  // Returns deduplicated post entries for a given day (one entry per post)
   function getEntriesForDay(day: Date): PostEntry[] {
     const seen = new Set<string>()
     const entries: PostEntry[] = []
-    posts.forEach((p) => {
+    sourcePosts.forEach((p) => {
       p.post_channels.forEach((pc) => {
         if (!pc.channel?.slug) return
         if (activeChannel !== 'all' && pc.channel.slug !== activeChannel) return
@@ -278,6 +283,65 @@ export function CalendarView({
     })
     return entries
   }
+
+  return (
+    <div>
+      <div className="sticky top-[44px] z-10 px-4 py-2" style={{ background: bg }}>
+        <span className="text-[13px] font-bold text-[#0A0A0A]">{monthLabel}</span>
+      </div>
+      <div className="grid grid-cols-5 gap-1 px-4 pb-4">
+        {days.map((day) => (
+          <DroppableDay
+            key={day.toISOString()}
+            day={day}
+            inMonth={isSameMonth(day, monthDate)}
+            today={isToday(day)}
+            entries={getEntriesForDay(day)}
+            onCardClick={onCardClick}
+            onAddClick={() => onAddClick(day)}
+            activeChannel={activeChannel}
+            todayRef={todayRef}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export function CalendarView({
+  posts,
+  activeChannel = 'all',
+  loading = false,
+  history,
+}: {
+  posts: PostWithDetails[]
+  activeChannel?: ChannelSlug | 'all'
+  loading?: boolean
+  history?: CalendarHistoryConfig
+}) {
+  const { openPost, openNewPost, patchPost } = usePostStore()
+  const todayRef     = useRef<HTMLDivElement | null>(null)
+  const didScrollRef = useRef(false)
+  const [activePostId, setActivePostId] = useState<string | null>(null)
+
+  // Auto-scroll to today after initial load
+  useEffect(() => {
+    if (!loading && !didScrollRef.current) {
+      didScrollRef.current = true
+      requestAnimationFrame(() => {
+        todayRef.current?.scrollIntoView({ block: 'start' })
+      })
+    }
+  }, [loading])
+
+  const sensors = useSensors(
+    useSensor(SmartPointerSensor, { activationConstraint: { distance: 6 } }),
+  )
+
+  const today        = new Date()
+  const futureMonths = [today, addMonths(today, 1), addMonths(today, 2)]
+  const historyMonths = [subMonths(today, 2), subMonths(today, 1)]
 
   // ── Drag handlers ───────────────────────────────────────────────────────────
   function handleDragStart({ active }: DragStartEvent) {
@@ -296,13 +360,13 @@ export function CalendarView({
 
     if (!postId || !sourceDate) return
 
-    const original   = new Date(sourceDate)
-    const target     = new Date(`${targetDay}T00:00:00`)
+    const original = new Date(sourceDate)
+    const target   = new Date(`${targetDay}T00:00:00`)
     target.setHours(original.getHours(), original.getMinutes(), 0, 0)
 
     if (isSameDay(original, target)) return
 
-    const post    = posts.find((p) => p.id === postId)
+    const post = posts.find((p) => p.id === postId)
     if (!post) return
 
     const deltaMs = target.getTime() - original.getTime()
@@ -354,13 +418,38 @@ export function CalendarView({
 
         {/* Header */}
         <div
-          className="flex items-center justify-end px-6 py-3.5"
+          className="flex items-center justify-between px-6 py-3.5"
           style={{
             background: 'rgba(255,255,255,0.5)',
             ...GLASS_BF,
             borderBottom: '1px solid rgba(0,0,0,0.06)',
           }}
         >
+          {/* History toggle */}
+          {history && (
+            history.visible ? (
+              <GlassButton
+                onClick={history.onHide}
+                className="px-2.5 py-1 text-[12px]"
+                style={GLASS_BF}
+              >
+                Ocultar historial
+              </GlassButton>
+            ) : (
+              <GlassButton
+                onClick={history.onLoad}
+                disabled={history.loading}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[12px]"
+                style={GLASS_BF}
+              >
+                {history.loading && <Loader2 className="h-3 w-3 animate-spin" />}
+                Ver historial
+              </GlassButton>
+            )
+          )}
+          {!history && <div />}
+
+          {/* Hoy */}
           <GlassButton
             onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
             className="px-2.5 py-1 text-[12px]"
@@ -380,7 +469,7 @@ export function CalendarView({
               {/* Sticky weekday labels */}
               <div
                 className="sticky top-0 z-20 mb-1 grid grid-cols-5 gap-1 px-4 pt-3 pb-1"
-                style={{ background: 'oklch(0.953 0 0)' }}
+                style={{ background: BG }}
               >
                 {WEEKDAYS.map((d) => (
                   <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#999999' }}>
@@ -389,40 +478,60 @@ export function CalendarView({
                 ))}
               </div>
 
-              {/* 3 month sections */}
-              {months.map((monthDate, mi) => {
-                const days = getDaysForMonth(monthDate)
-                const monthLabel = `${MONTHS_ES[monthDate.getMonth()]} ${monthDate.getFullYear()}`
-
-                return (
-                  <div key={mi}>
-                    {/* Sticky month title */}
-                    <div
-                      className="sticky top-[44px] z-10 px-4 py-2"
-                      style={{ background: 'oklch(0.953 0 0)' }}
-                    >
-                      <span className="text-[13px] font-bold text-[#0A0A0A]">{monthLabel}</span>
+              {/* ── History section ── */}
+              {history?.visible && (
+                <>
+                  {/* Load more (older) at the top */}
+                  {history.hasMore && (
+                    <div className="flex justify-center px-4 py-2">
+                      <button
+                        onClick={history.onLoadMore}
+                        disabled={history.loading}
+                        className="flex items-center gap-1.5 rounded-md border border-[#D9D9D9] bg-white px-3 py-1.5 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                      >
+                        {history.loading && <Loader2 className="h-3 w-3 animate-spin" />}
+                        Cargar más
+                      </button>
                     </div>
+                  )}
 
-                    {/* Days */}
-                    <div className="grid grid-cols-5 gap-1 px-4 pb-4">
-                      {days.map((day) => (
-                        <DroppableDay
-                          key={day.toISOString()}
-                          day={day}
-                          inMonth={isSameMonth(day, monthDate)}
-                          today={isToday(day)}
-                          entries={getEntriesForDay(day)}
-                          onCardClick={(id) => openPost(id)}
-                          onAddClick={() => openNewPost({ scheduled_at: day.toISOString() })}
-                          activeChannel={activeChannel}
-                          todayRef={todayRef}
-                        />
-                      ))}
-                    </div>
+                  {historyMonths.map((monthDate, mi) => (
+                    <MonthSection
+                      key={`h-${mi}`}
+                      monthDate={monthDate}
+                      sourcePosts={history.posts}
+                      activeChannel={activeChannel}
+                      onCardClick={(id) => openPost(id)}
+                      onAddClick={(day) => openNewPost({ scheduled_at: day.toISOString() })}
+                      todayRef={todayRef}
+                      bg={BG}
+                    />
+                  ))}
+
+                  {/* Separator */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="h-px flex-1 bg-neutral-200" />
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
+                      Historial
+                    </span>
+                    <div className="h-px flex-1 bg-neutral-200" />
                   </div>
-                )
-              })}
+                </>
+              )}
+
+              {/* ── Future months ── */}
+              {futureMonths.map((monthDate, mi) => (
+                <MonthSection
+                  key={`f-${mi}`}
+                  monthDate={monthDate}
+                  sourcePosts={posts}
+                  activeChannel={activeChannel}
+                  onCardClick={(id) => openPost(id)}
+                  onAddClick={(day) => openNewPost({ scheduled_at: day.toISOString() })}
+                  todayRef={todayRef}
+                  bg={BG}
+                />
+              ))}
             </>
           )}
         </div>
