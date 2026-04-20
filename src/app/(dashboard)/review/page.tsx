@@ -13,6 +13,7 @@ import { LinkedInPostCard } from '@/components/social-cards/LinkedInPostCard'
 import { XPostCard } from '@/components/social-cards/XPostCard'
 import { ReviewPanel, channelDate, formatChannelDate } from '@/components/review/ReviewPanel'
 import { ReviewIndicators } from '@/components/social-cards/ReviewIndicators'
+import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -54,11 +55,11 @@ function CompactRow({
   const approvals     = post.post_approvals ?? []
   const comments      = post.post_comments  ?? []
 
-  const pc       = post.post_channels.find((c) => c.channel?.slug === activeTab)
-  const copy     = pc?.copy_override || post.copy
-  const media    = post.media_files?.find((m) => m.type !== 'cover')
-  const cover    = post.media_files?.find((m) => m.type === 'cover')
-  const thumbSrc = media?.url ?? cover?.url ?? null
+  const pc      = post.post_channels.find((c) => c.channel?.slug === activeTab)
+  const copy    = pc?.copy_override || post.copy
+  const media   = post.media_files?.find((m) => m.type !== 'cover')
+  const cover   = post.media_files?.find((m) => m.type === 'cover')
+  const isVideo = media?.type === 'video' || /\.(mp4|mov|webm|ogg|m4v)(\?.*)?$/i.test(media?.url ?? '')
 
   async function handleVote(decision: 'approved' | 'rejected') {
     if (voting) return
@@ -67,7 +68,7 @@ function CompactRow({
   }
 
   return (
-    <div
+    <article
       onClick={toggle}
       className={cn(
         'flex h-[72px] cursor-pointer items-center gap-3 px-4 transition-colors',
@@ -76,8 +77,12 @@ function CompactRow({
     >
       {/* Thumbnail */}
       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
-        {thumbSrc ? (
-          <img src={thumbSrc} alt="" className="h-full w-full object-cover" />
+        {cover ? (
+          <img src={cover.url} alt="" className="h-full w-full object-cover" />
+        ) : media && isVideo ? (
+          <VideoThumbnail src={media.url} className="h-full w-full object-cover pointer-events-none" />
+        ) : media ? (
+          <img src={media.url} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <ImageIcon className="h-4 w-4 text-neutral-300" />
@@ -125,7 +130,7 @@ function CompactRow({
           <X className="h-4 w-4" strokeWidth={2.5} />
         </button>
       </div>
-    </div>
+    </article>
   )
 }
 
