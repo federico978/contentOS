@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import {
   startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday,
-  addMonths, subMonths, getDay, format,
+  addMonths, getDay, format,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react'
+import { ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { fetchReviewPosts } from '@/lib/api/posts'
@@ -115,46 +115,51 @@ function CalendarDay({
   entries,
   selectedKey,
   onEntryClick,
+  todayRef,
 }: {
   day:          Date
   inMonth:      boolean
   entries:      CalendarEntry[]
   selectedKey:  string | null
   onEntryClick: (entry: CalendarEntry) => void
+  todayRef?:    React.RefObject<HTMLDivElement>
 }) {
   const visible  = entries.slice(0, 4)
   const overflow = entries.length - 4
+  const today    = isToday(day)
 
   return (
-    <div className={cn(
-      'min-h-28 rounded-lg p-1.5',
-      inMonth ? 'bg-white border border-[#D9D9D9]' : 'bg-transparent',
-      isToday(day) && 'border-neutral-400 ring-1 ring-neutral-300',
-    )}>
+    <div ref={today ? todayRef : undefined}>
       <div className={cn(
-        'mb-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11.5px] font-medium',
-        isToday(day)  ? 'bg-[#0A0A0A] text-white'
-        : inMonth     ? 'text-neutral-700'
-        :               'text-neutral-300',
+        'min-h-28 rounded-lg p-1.5',
+        inMonth ? 'bg-white border border-[#D9D9D9]' : 'bg-transparent',
+        today && 'border-neutral-400 ring-1 ring-neutral-300',
       )}>
-        {format(day, 'd')}
-      </div>
+        <div className={cn(
+          'mb-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11.5px] font-medium',
+          today     ? 'bg-[#0A0A0A] text-white'
+          : inMonth ? 'text-neutral-700'
+          :           'text-neutral-300',
+        )}>
+          {format(day, 'd')}
+        </div>
 
-      <div className="space-y-0.5">
-        {visible.map((entry, i) => {
-          const key = `${entry.post.id}-${entry.channelSlug}`
-          return (
-            <CalendarCard
-              key={`${key}-${i}`}
-              entry={entry}
-              selected={selectedKey === key}
-              onClick={onEntryClick}
-            />
-          )
-        })}
-        {overflow > 0 && (
-          <p className="cursor-default px-1 text-[10.5px] text-neutral-400">+{overflow} más</p>
-        )}
+        <div className="space-y-0.5">
+          {visible.map((entry, i) => {
+            const key = `${entry.post.id}-${entry.channelSlug}`
+            return (
+              <CalendarCard
+                key={`${key}-${i}`}
+                entry={entry}
+                selected={selectedKey === key}
+                onClick={onEntryClick}
+              />
+            )
+          })}
+          {overflow > 0 && (
+            <p className="cursor-default px-1 text-[10.5px] text-neutral-400">+{overflow} más</p>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -167,19 +172,19 @@ export default function ReviewerCalendarPage() {
   const [loading,       setLoading]       = useState(true)
   const [userId,        setUserId]        = useState<string | null>(null)
   const [userName,      setUserName]      = useState<string>('')
-  const [currentDate,   setCurrentDate]   = useState(new Date())
   const [activeChannel, setActiveChannel] = useState<ChannelSlug | 'all'>('all')
   const [selectedEntry, setSelectedEntry] = useState<CalendarEntry | null>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const gridRef  = useRef<HTMLDivElement>(null)
+  const panelRef  = useRef<HTMLDivElement>(null)
+  const gridRef   = useRef<HTMLDivElement>(null)
+  const todayRef  = useRef<HTMLDivElement>(null)
 
   // Close panel on click-outside, but let grid card clicks switch the selection
   useEffect(() => {
     if (!selectedEntry) return
     function onMouseDown(e: MouseEvent) {
       const target = e.target as Element
-      if (panelRef.current?.contains(target)) return  // inside panel
-      if (gridRef.current?.contains(target)) return   // inside calendar grid
+      if (panelRef.current?.contains(target)) return
+      if (gridRef.current?.contains(target)) return
       setSelectedEntry(null)
     }
     document.addEventListener('mousedown', onMouseDown)
@@ -209,13 +214,15 @@ export default function ReviewerCalendarPage() {
     load()
   }, [])
 
-  // Mon–Fri days for the current month view
-  const days = eachDayOfInterval({
-    start: startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 }),
-    end:   endOfWeek(endOfMonth(currentDate),     { weekStartsOn: 1 }),
-  }).filter((d) => getDay(d) !== 0 && getDay(d) !== 6)
+  const today  = new Date()
+  const months = [today, addMonths(today, 1), addMonths(today, 2)]
 
-  const monthLabel = `${MONTHS_ES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+  function getDaysForMonth(monthDate: Date) {
+    return eachDayOfInterval({
+      start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 }),
+      end:   endOfWeek(endOfMonth(monthDate),     { weekStartsOn: 1 }),
+    }).filter((d) => getDay(d) !== 0 && getDay(d) !== 6)
+  }
 
   // One entry per (post × channel) pair on a given day
   function getEntriesForDay(day: Date): CalendarEntry[] {
@@ -264,29 +271,12 @@ export default function ReviewerCalendarPage() {
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-[#D9D9D9] px-6 py-3.5">
         <h1 className="text-[14px] font-black text-[#0A0A0A]">Calendario</h1>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-200"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="min-w-[140px] text-center text-[13px] font-semibold text-[#0A0A0A]">
-            {monthLabel}
-          </span>
-          <button
-            onClick={() => setCurrentDate(new Date())}
-            className="rounded-md border border-[#D9D9D9] bg-white px-2.5 py-1 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
-          >
-            Hoy
-          </button>
-          <button
-            onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-200"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        <button
+          onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+          className="rounded-md border border-[#D9D9D9] bg-white px-2.5 py-1 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
+        >
+          Hoy
+        </button>
       </div>
 
       {/* Channel filter */}
@@ -315,16 +305,21 @@ export default function ReviewerCalendarPage() {
         <div
           ref={gridRef}
           className={cn(
-            'h-full overflow-y-auto px-4 pb-4 pt-3 transition-[padding] duration-300',
+            'h-full overflow-y-auto pb-4 transition-[padding] duration-300',
             panelOpen ? 'pr-[400px]' : 'pr-4',
           )}
         >
           {loading ? (
-            <CalendarSkeleton />
+            <div className="px-4 pt-3">
+              <CalendarSkeleton />
+            </div>
           ) : (
             <>
-              {/* Weekday labels */}
-              <div className="mb-1 grid grid-cols-5 gap-1">
+              {/* Sticky weekday labels */}
+              <div
+                className="sticky top-0 z-20 mb-1 grid grid-cols-5 gap-1 px-4 pt-3 pb-1"
+                style={{ background: 'oklch(1 0 0)' }}
+              >
                 {WEEKDAYS.map((d) => (
                   <div
                     key={d}
@@ -335,19 +330,38 @@ export default function ReviewerCalendarPage() {
                 ))}
               </div>
 
-              {/* Day cells */}
-              <div className="grid grid-cols-5 gap-1">
-                {days.map((day) => (
-                  <CalendarDay
-                    key={day.toISOString()}
-                    day={day}
-                    inMonth={isSameMonth(day, currentDate)}
-                    entries={getEntriesForDay(day)}
-                    selectedKey={selectedKey}
-                    onEntryClick={setSelectedEntry}
-                  />
-                ))}
-              </div>
+              {/* 3 month sections */}
+              {months.map((monthDate, mi) => {
+                const days       = getDaysForMonth(monthDate)
+                const monthLabel = `${MONTHS_ES[monthDate.getMonth()]} ${monthDate.getFullYear()}`
+
+                return (
+                  <div key={mi}>
+                    {/* Sticky month title */}
+                    <div
+                      className="sticky top-[44px] z-10 px-4 py-2"
+                      style={{ background: 'oklch(1 0 0)' }}
+                    >
+                      <span className="text-[13px] font-bold text-[#0A0A0A]">{monthLabel}</span>
+                    </div>
+
+                    {/* Day cells */}
+                    <div className="grid grid-cols-5 gap-1 px-4 pb-4">
+                      {days.map((day) => (
+                        <CalendarDay
+                          key={day.toISOString()}
+                          day={day}
+                          inMonth={isSameMonth(day, monthDate)}
+                          entries={getEntriesForDay(day)}
+                          selectedKey={selectedKey}
+                          onEntryClick={setSelectedEntry}
+                          todayRef={todayRef}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
             </>
           )}
         </div>

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef } from 'react'
 import {
   startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday,
-  addMonths, subMonths, getDay, format,
+  addMonths, getDay, format,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus, ImageIcon } from 'lucide-react'
+import { Plus, ImageIcon } from 'lucide-react'
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
   pointerWithin, useDraggable, useDroppable, useSensor, useSensors,
@@ -21,6 +21,7 @@ import { usePostStore } from '@/store/usePostStore'
 import { updatePostScheduledAt, upsertChannelScheduledAt } from '@/lib/api/posts'
 import { SmartPointerSensor } from '@/lib/dnd-sensors'
 import { toast } from 'sonner'
+import { useState } from 'react'
 
 const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
 
@@ -53,19 +54,15 @@ function PostThumb({ post }: { post: PostWithDetails }) {
   return (
     <div className="h-8 w-8 shrink-0 overflow-hidden rounded-[5px] bg-neutral-100">
       {cover ? (
-        // Cover image (used as thumbnail for external/video posts)
         <img src={cover.url} alt="" className="h-full w-full object-cover" />
       ) : image ? (
-        // Regular image
         <img src={image.url} alt="" className="h-full w-full object-cover" />
       ) : video ? (
-        // Local video — show first frame via VideoThumbnail
         <VideoThumbnail
           src={video.url}
           className="h-full w-full object-cover pointer-events-none"
         />
       ) : (
-        // No media or external video with no cover — neutral placeholder
         <div className="flex h-full w-full items-center justify-center">
           <ImageIcon className="h-3.5 w-3.5 text-neutral-300" />
         </div>
@@ -84,7 +81,6 @@ function DraggableCard({
   onClick: (id: string) => void
   activeChannel: ChannelSlug | 'all'
 }) {
-  // Draggable ID encodes both postId and source date to keep IDs unique across days
   const draggableId = `${entry.post.id}::${format(new Date(entry.date), 'yyyy-MM-dd')}`
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -167,6 +163,7 @@ function DroppableDay({
   onCardClick,
   onAddClick,
   activeChannel,
+  todayRef,
 }: {
   day: Date
   inMonth: boolean
@@ -175,6 +172,7 @@ function DroppableDay({
   onCardClick: (id: string) => void
   activeChannel: ChannelSlug | 'all'
   onAddClick: () => void
+  todayRef?: React.RefObject<HTMLDivElement>
 }) {
   const isoDay = format(day, 'yyyy-MM-dd')
   const { setNodeRef, isOver } = useDroppable({ id: isoDay })
@@ -183,52 +181,54 @@ function DroppableDay({
   const overflow = entries.length - 3
 
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        'group relative min-h-28 rounded-lg p-1.5 transition-colors',
-        inMonth ? 'bg-white border border-[#D9D9D9]' : 'bg-transparent',
-        today && 'border-neutral-400 ring-1 ring-neutral-300',
-        isOver && inMonth && 'border-blue-300 bg-blue-50/60 ring-1 ring-blue-200',
-      )}
-    >
-      {/* Day number */}
-      <div className={cn(
-        'mb-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11.5px] font-medium',
-        today    ? 'bg-[#0A0A0A] text-white'
-        : inMonth ? 'text-neutral-700'
-        :           'text-neutral-300',
-      )}>
-        {format(day, 'd')}
-      </div>
+    <div ref={today ? todayRef : undefined}>
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'group relative min-h-28 rounded-lg p-1.5 transition-colors',
+          inMonth ? 'bg-white border border-[#D9D9D9]' : 'bg-transparent',
+          today && 'border-neutral-400 ring-1 ring-neutral-300',
+          isOver && inMonth && 'border-blue-300 bg-blue-50/60 ring-1 ring-blue-200',
+        )}
+      >
+        {/* Day number */}
+        <div className={cn(
+          'mb-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11.5px] font-medium',
+          today    ? 'bg-[#0A0A0A] text-white'
+          : inMonth ? 'text-neutral-700'
+          :           'text-neutral-300',
+        )}>
+          {format(day, 'd')}
+        </div>
 
-      {/* Mini cards */}
-      <div className="space-y-0.5">
-        {visible.map((entry) => (
-          <DraggableCard
-            key={`${entry.post.id}-${isoDay}`}
-            entry={entry}
-            onClick={onCardClick}
-            activeChannel={activeChannel}
-          />
-        ))}
-        {overflow > 0 && (
-          <p className="cursor-default px-1 text-[10.5px] text-neutral-400">
-            +{overflow} más
-          </p>
+        {/* Mini cards */}
+        <div className="space-y-0.5">
+          {visible.map((entry) => (
+            <DraggableCard
+              key={`${entry.post.id}-${isoDay}`}
+              entry={entry}
+              onClick={onCardClick}
+              activeChannel={activeChannel}
+            />
+          ))}
+          {overflow > 0 && (
+            <p className="cursor-default px-1 text-[10.5px] text-neutral-400">
+              +{overflow} más
+            </p>
+          )}
+        </div>
+
+        {/* Add post button */}
+        {inMonth && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAddClick() }}
+            className="absolute right-1.5 top-1.5 flex items-center justify-center text-[#BBBBBB] opacity-0 transition-opacity duration-150 hover:text-[#888888] group-hover:opacity-100"
+            style={{ width: 30, height: 30, borderRadius: 6, border: '1.5px dashed #CCCCCC' }}
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
         )}
       </div>
-
-      {/* Add post button */}
-      {inMonth && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onAddClick() }}
-          className="absolute right-1.5 top-1.5 flex items-center justify-center text-[#BBBBBB] opacity-0 transition-opacity duration-150 hover:text-[#888888] group-hover:opacity-100"
-          style={{ width: 30, height: 30, borderRadius: 6, border: '1.5px dashed #CCCCCC' }}
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </button>
-      )}
     </div>
   )
 }
@@ -244,19 +244,22 @@ export function CalendarView({
   loading?: boolean
 }) {
   const { openPost, openNewPost, patchPost } = usePostStore()
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const todayRef = useRef<HTMLDivElement>(null)
   const [activePostId, setActivePostId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(SmartPointerSensor, { activationConstraint: { distance: 6 } }),
   )
 
-  const days = eachDayOfInterval({
-    start: startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 }),
-    end:   endOfWeek(endOfMonth(currentDate),   { weekStartsOn: 1 }),
-  }).filter((d) => getDay(d) !== 0 && getDay(d) !== 6)
+  const today = new Date()
+  const months = [today, addMonths(today, 1), addMonths(today, 2)]
 
-  const monthLabel = `${MONTHS_ES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+  function getDaysForMonth(monthDate: Date) {
+    return eachDayOfInterval({
+      start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 }),
+      end:   endOfWeek(endOfMonth(monthDate),     { weekStartsOn: 1 }),
+    }).filter((d) => getDay(d) !== 0 && getDay(d) !== 6)
+  }
 
   // Returns deduplicated post entries for a given day (one entry per post)
   function getEntriesForDay(day: Date): PostEntry[] {
@@ -289,11 +292,10 @@ export function CalendarView({
     const data       = active.data.current as { postId: string; sourceDate: string }
     const postId     = data?.postId
     const sourceDate = data?.sourceDate
-    const targetDay  = String(over.id) // 'yyyy-MM-dd'
+    const targetDay  = String(over.id)
 
     if (!postId || !sourceDate) return
 
-    // Parse target day and preserve the original time-of-day
     const original   = new Date(sourceDate)
     const target     = new Date(`${targetDay}T00:00:00`)
     target.setHours(original.getHours(), original.getMinutes(), 0, 0)
@@ -305,7 +307,6 @@ export function CalendarView({
 
     const deltaMs = target.getTime() - original.getTime()
 
-    // Build shifted channel dates
     const shiftedChannels = post.post_channels.map((pc) => ({
       ...pc,
       scheduled_at: pc.scheduled_at
@@ -313,7 +314,6 @@ export function CalendarView({
         : pc.scheduled_at,
     }))
 
-    // Optimistic update
     patchPost(postId, {
       scheduled_at: target.toISOString(),
       status: 'scheduled',
@@ -323,7 +323,6 @@ export function CalendarView({
     try {
       await updatePostScheduledAt(postId, target.toISOString())
 
-      // Update each channel date that had one
       for (const pc of post.post_channels) {
         if (!pc.scheduled_at || !pc.channel_id) continue
         const shifted = new Date(new Date(pc.scheduled_at).getTime() + deltaMs).toISOString()
@@ -332,7 +331,6 @@ export function CalendarView({
 
       toast.success('Fecha actualizada')
     } catch (err) {
-      // Rollback
       patchPost(postId, {
         scheduled_at: post.scheduled_at,
         status: post.status,
@@ -356,26 +354,20 @@ export function CalendarView({
 
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-3.5"
+          className="flex items-center justify-end px-6 py-3.5"
           style={{
             background: 'rgba(255,255,255,0.5)',
             ...GLASS_BF,
             borderBottom: '1px solid rgba(0,0,0,0.06)',
           }}
         >
-          <h2 className="text-[14px] font-bold text-[#0A0A0A]">{monthLabel}</h2>
-
-          <div className="flex items-center gap-1">
-            <GlassButton onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-1.5" style={GLASS_BF}>
-              <ChevronLeft className="h-4 w-4" />
-            </GlassButton>
-            <GlassButton onClick={() => setCurrentDate(new Date())} className="px-2.5 py-1 text-[12px]" style={GLASS_BF}>
-              Hoy
-            </GlassButton>
-            <GlassButton onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-1.5" style={GLASS_BF}>
-              <ChevronRight className="h-4 w-4" />
-            </GlassButton>
-          </div>
+          <GlassButton
+            onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            className="px-2.5 py-1 text-[12px]"
+            style={GLASS_BF}
+          >
+            Hoy
+          </GlassButton>
         </div>
 
         {/* Grid */}
@@ -383,30 +375,56 @@ export function CalendarView({
 
           {loading ? <CalendarSkeleton /> : null}
 
-          {/* Weekday labels */}
-          <div className={cn('mb-1 grid grid-cols-5 gap-1 px-4 pt-3', loading && 'hidden')}>
-            {WEEKDAYS.map((d) => (
-              <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#999999' }}>
-                {d}
+          {!loading && (
+            <>
+              {/* Sticky weekday labels */}
+              <div
+                className="sticky top-0 z-20 mb-1 grid grid-cols-5 gap-1 px-4 pt-3 pb-1"
+                style={{ background: 'oklch(0.953 0 0)' }}
+              >
+                {WEEKDAYS.map((d) => (
+                  <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#999999' }}>
+                    {d}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Days */}
-          <div className={cn('grid grid-cols-5 gap-1 px-4 pb-4', loading && 'hidden')}>
-            {days.map((day) => (
-              <DroppableDay
-                key={day.toISOString()}
-                day={day}
-                inMonth={isSameMonth(day, currentDate)}
-                today={isToday(day)}
-                entries={getEntriesForDay(day)}
-                onCardClick={(id) => openPost(id)}
-                onAddClick={() => openNewPost({ scheduled_at: day.toISOString() })}
-                activeChannel={activeChannel}
-              />
-            ))}
-          </div>
+              {/* 3 month sections */}
+              {months.map((monthDate, mi) => {
+                const days = getDaysForMonth(monthDate)
+                const monthLabel = `${MONTHS_ES[monthDate.getMonth()]} ${monthDate.getFullYear()}`
+
+                return (
+                  <div key={mi}>
+                    {/* Sticky month title */}
+                    <div
+                      className="sticky top-[44px] z-10 px-4 py-2"
+                      style={{ background: 'oklch(0.953 0 0)' }}
+                    >
+                      <span className="text-[13px] font-bold text-[#0A0A0A]">{monthLabel}</span>
+                    </div>
+
+                    {/* Days */}
+                    <div className="grid grid-cols-5 gap-1 px-4 pb-4">
+                      {days.map((day) => (
+                        <DroppableDay
+                          key={day.toISOString()}
+                          day={day}
+                          inMonth={isSameMonth(day, monthDate)}
+                          today={isToday(day)}
+                          entries={getEntriesForDay(day)}
+                          onCardClick={(id) => openPost(id)}
+                          onAddClick={() => openNewPost({ scheduled_at: day.toISOString() })}
+                          activeChannel={activeChannel}
+                          todayRef={todayRef}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </>
+          )}
         </div>
       </div>
 
