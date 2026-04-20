@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Loader2, Upload, ImageIcon, FileDown } from 'lucide-react'
+import { Plus, Upload, ImageIcon, FileDown } from 'lucide-react'
 import { isSameDay } from 'date-fns'
 import {
   DndContext, DragOverlay, DragStartEvent, DragEndEvent,
@@ -16,6 +16,7 @@ import { SidebarInstagramFeed } from '@/components/posts/SidebarInstagramFeed'
 import { SidebarLinkedInFeed } from '@/components/posts/SidebarLinkedInFeed'
 import { SidebarXFeed } from '@/components/posts/SidebarXFeed'
 import { BulkUpload } from '@/components/posts/BulkUpload'
+import { PostCardSkeleton } from '@/components/posts/PostCardSkeleton'
 import { ExportPDFModal } from '@/components/posts/ExportPDFModal'
 import { usePostStore } from '@/store/usePostStore'
 import { fetchPosts, fetchChannels, updatePostScheduledAt, upsertChannelScheduledAt } from '@/lib/api/posts'
@@ -213,8 +214,8 @@ export default function PostsPage() {
           {/* Left — posts grid */}
           <div className="flex-[7] overflow-y-auto px-6 py-4">
             {loading ? (
-              <div className="flex h-40 items-center justify-center">
-                <Loader2 className="h-4 w-4 animate-spin text-neutral-300" />
+              <div className={cn('grid gap-3', colClass)}>
+                {Array.from({ length: 6 }).map((_, i) => <PostCardSkeleton key={i} />)}
               </div>
             ) : posts.length === 0 ? (
               <div className="flex h-52 flex-col items-center justify-center gap-3 text-center">

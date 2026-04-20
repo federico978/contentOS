@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { CalendarView } from '@/components/calendar/CalendarView'
 import { usePostStore } from '@/store/usePostStore'
 import { fetchPosts, fetchChannels } from '@/lib/api/posts'
@@ -29,14 +28,6 @@ export default function CalendarPage() {
     }
     load()
   }, [setPosts, setChannels, setLoading])
-
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-      </div>
-    )
-  }
 
   return (
     <div className="flex h-full flex-col">
@@ -70,7 +61,7 @@ export default function CalendarPage() {
         ))}
       </div>
       <div className="flex-1 overflow-hidden">
-        <CalendarView posts={posts} activeChannel={activeChannel} />
+        <CalendarView posts={posts} activeChannel={activeChannel} loading={loading} />
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { LayoutList, LayoutGrid, AlignJustify, CheckCircle2, Loader2, ChevronDown, Check, X, ImageIcon } from 'lucide-react'
+import { LayoutList, LayoutGrid, AlignJustify, CheckCircle2, ChevronDown, Check, X, ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { fetchReviewPosts } from '@/lib/api/posts'
@@ -14,6 +14,7 @@ import { XPostCard } from '@/components/social-cards/XPostCard'
 import { ReviewPanel, channelDate, formatChannelDate } from '@/components/review/ReviewPanel'
 import { ReviewIndicators } from '@/components/social-cards/ReviewIndicators'
 import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,89 @@ const APPROVAL_FILTER_OPTIONS: { value: ApprovalFilter; label: string }[] = [
   { value: 'approved', label: 'Aprobados por mí' },
   { value: 'rejected', label: 'Rechazados por mí' },
 ]
+
+// ── Loading skeletons ─────────────────────────────────────────────────────────
+
+function InstagramSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#DBDBDB] bg-white">
+      <div className="flex items-center gap-2 px-2.5 py-2">
+        <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+        <div className="flex-1 space-y-1.5">
+          <Skeleton className="h-2.5 w-24 rounded-full" />
+          <Skeleton className="h-2 w-32 rounded-full" />
+        </div>
+      </div>
+      <Skeleton className="w-full rounded-none" style={{ aspectRatio: '4/5' }} />
+      <div className="space-y-1.5 px-2.5 py-2.5">
+        <Skeleton className="h-2.5 w-full rounded-full" />
+        <Skeleton className="h-2.5 w-5/6 rounded-full" />
+        <Skeleton className="h-2.5 w-2/3 rounded-full" />
+      </div>
+    </div>
+  )
+}
+
+function LinkedInSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#E0E0E0] bg-white">
+      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+        <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+        <div className="flex-1 space-y-1.5">
+          <Skeleton className="h-3 w-28 rounded-full" />
+          <Skeleton className="h-2.5 w-36 rounded-full" />
+          <Skeleton className="h-2 w-24 rounded-full" />
+        </div>
+      </div>
+      <div className="space-y-1.5 px-4 pb-3">
+        <Skeleton className="h-2.5 w-full rounded-full" />
+        <Skeleton className="h-2.5 w-5/6 rounded-full" />
+        <Skeleton className="h-2.5 w-3/4 rounded-full" />
+      </div>
+      <Skeleton className="h-44 w-full rounded-none" />
+    </div>
+  )
+}
+
+function XSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#EFF3F4] bg-white">
+      <div className="px-4 pt-3.5 pb-3">
+        <div className="mb-3 flex items-start gap-2.5">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-3 w-28 rounded-full" />
+            <Skeleton className="h-2.5 w-24 rounded-full" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Skeleton className="h-2.5 w-full rounded-full" />
+          <Skeleton className="h-2.5 w-5/6 rounded-full" />
+          <Skeleton className="h-2.5 w-2/3 rounded-full" />
+        </div>
+        <Skeleton className="mt-3 w-full rounded-2xl" style={{ aspectRatio: '16/9' }} />
+      </div>
+    </div>
+  )
+}
+
+function CompactRowSkeleton() {
+  return (
+    <div className="flex h-[72px] items-center gap-3 px-4">
+      <Skeleton className="h-14 w-14 shrink-0 rounded-lg" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-2.5 w-full rounded-full" />
+        <Skeleton className="h-2.5 w-3/4 rounded-full" />
+        <Skeleton className="h-2 w-1/3 rounded-full" />
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Skeleton className="h-[22px] w-[22px] rounded-full" />
+        <Skeleton className="h-8 w-8 rounded-full" />
+        <Skeleton className="h-8 w-8 rounded-full" />
+      </div>
+    </div>
+  )
+}
 
 // ── Compact row ───────────────────────────────────────────────────────────────
 
@@ -367,9 +451,24 @@ export default function ReviewPage() {
           panelOpen ? 'pr-[400px]' : 'pr-6',
         )}>
           {loading ? (
-            <div className="flex h-40 items-center justify-center">
-              <Loader2 className="h-4 w-4 animate-spin text-neutral-300" />
-            </div>
+            viewMode === 'compact' ? (
+              <div className="overflow-hidden rounded-xl border border-[#E5E5E5] divide-y divide-[#F0F0F0]">
+                {Array.from({ length: 8 }).map((_, i) => <CompactRowSkeleton key={i} />)}
+              </div>
+            ) : (
+              <div className={cn(
+                'grid gap-4',
+                activeTab === 'instagram'
+                  ? 'grid-cols-3 max-w-[1020px] mx-auto'
+                  : 'grid-cols-3',
+              )}>
+                {Array.from({ length: 3 }).map((_, i) =>
+                  activeTab === 'instagram' ? <InstagramSkeleton key={i} /> :
+                  activeTab === 'linkedin'  ? <LinkedInSkeleton  key={i} /> :
+                                             <XSkeleton          key={i} />
+                )}
+              </div>
+            )
           ) : filteredPosts.length === 0 ? (
             <div className="flex h-52 flex-col items-center justify-center gap-3 text-center">
               <CheckCircle2 className="h-8 w-8 text-neutral-200" />

@@ -6,7 +6,7 @@ import {
   startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday,
   addMonths, subMonths, getDay, format,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, ImageIcon, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { fetchReviewPosts } from '@/lib/api/posts'
@@ -14,6 +14,7 @@ import { ReviewPost, PostApproval, PostComment, ChannelSlug } from '@/lib/types'
 import { ChannelIcon } from '@/components/ui/channel-icon'
 import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
 import { ReviewPanel } from '@/components/review/ReviewPanel'
+import { CalendarSkeleton } from '@/components/calendar/CalendarSkeleton'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -319,9 +320,7 @@ export default function ReviewerCalendarPage() {
           )}
         >
           {loading ? (
-            <div className="flex h-40 items-center justify-center">
-              <Loader2 className="h-4 w-4 animate-spin text-neutral-300" />
-            </div>
+            <CalendarSkeleton />
           ) : (
             <>
               {/* Weekday labels */}

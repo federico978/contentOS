@@ -13,6 +13,7 @@ import {
 } from '@dnd-kit/core'
 import { PostWithDetails, ChannelSlug } from '@/lib/types'
 import { GlassButton } from '@/components/ui/glass-button'
+import { CalendarSkeleton } from '@/components/calendar/CalendarSkeleton'
 import { ChannelIcon } from '@/components/ui/channel-icon'
 import { VideoThumbnail } from '@/components/feed/VideoThumbnail'
 import { cn } from '@/lib/utils'
@@ -236,9 +237,11 @@ function DroppableDay({
 export function CalendarView({
   posts,
   activeChannel = 'all',
+  loading = false,
 }: {
   posts: PostWithDetails[]
   activeChannel?: ChannelSlug | 'all'
+  loading?: boolean
 }) {
   const { openPost, openNewPost, patchPost } = usePostStore()
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -376,10 +379,12 @@ export function CalendarView({
         </div>
 
         {/* Grid */}
-        <div className="flex-1 overflow-auto px-4 pb-4 pt-3">
+        <div className="flex-1 overflow-auto">
+
+          {loading ? <CalendarSkeleton /> : null}
 
           {/* Weekday labels */}
-          <div className="mb-1 grid grid-cols-5 gap-1">
+          <div className={cn('mb-1 grid grid-cols-5 gap-1 px-4 pt-3', loading && 'hidden')}>
             {WEEKDAYS.map((d) => (
               <div key={d} className="py-1 text-center text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#999999' }}>
                 {d}
@@ -388,7 +393,7 @@ export function CalendarView({
           </div>
 
           {/* Days */}
-          <div className="grid grid-cols-5 gap-1">
+          <div className={cn('grid grid-cols-5 gap-1 px-4 pb-4', loading && 'hidden')}>
             {days.map((day) => (
               <DroppableDay
                 key={day.toISOString()}
