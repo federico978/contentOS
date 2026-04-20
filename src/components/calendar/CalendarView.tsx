@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday,
@@ -321,19 +321,8 @@ export function CalendarView({
   history?: CalendarHistoryConfig
 }) {
   const { openPost, openNewPost, patchPost } = usePostStore()
-  const todayRef     = useRef<HTMLDivElement | null>(null)
-  const didScrollRef = useRef(false)
+  const todayRef = useRef<HTMLDivElement | null>(null)
   const [activePostId, setActivePostId] = useState<string | null>(null)
-
-  // Auto-scroll to today after initial load
-  useEffect(() => {
-    if (!loading && !didScrollRef.current) {
-      didScrollRef.current = true
-      requestAnimationFrame(() => {
-        todayRef.current?.scrollIntoView({ block: 'start' })
-      })
-    }
-  }, [loading])
 
   const sensors = useSensors(
     useSensor(SmartPointerSensor, { activationConstraint: { distance: 6 } }),

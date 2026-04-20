@@ -247,9 +247,8 @@ export default function ReviewerCalendarPage() {
   const [historyHasMore, setHistoryHasMore] = useState(false)
   const [historyOffset,  setHistoryOffset]  = useState(0)
 
-  const panelRef     = useRef<HTMLDivElement>(null)
-  const todayRef     = useRef<HTMLDivElement | null>(null)
-  const didScrollRef = useRef(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const todayRef = useRef<HTMLDivElement | null>(null)
 
   // Close panel on click-outside; clicking a card switches selection instead of closing
   useEffect(() => {
@@ -291,16 +290,6 @@ export default function ReviewerCalendarPage() {
     }
     load()
   }, [])
-
-  // Auto-scroll to today after initial load
-  useEffect(() => {
-    if (!loading && !didScrollRef.current) {
-      didScrollRef.current = true
-      requestAnimationFrame(() => {
-        todayRef.current?.scrollIntoView({ block: 'start' })
-      })
-    }
-  }, [loading])
 
   // ── History helpers ──────────────────────────────────────────────────────────
   const historyRange = useCallback(() => ({
