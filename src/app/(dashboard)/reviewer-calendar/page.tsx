@@ -63,6 +63,13 @@ function PostThumb({ post }: { post: ReviewPost }) {
   )
 }
 
+function approvalBorderColor(post: ReviewPost): string {
+  const approvals = post.post_approvals ?? []
+  if (approvals.some((a) => a.status === 'rejected')) return '#EF4444'
+  if (approvals.some((a) => a.status === 'approved'))  return '#22C55E'
+  return '#D1D5DB'
+}
+
 function CalendarCard({
   entry,
   selected,
@@ -72,11 +79,14 @@ function CalendarCard({
   selected: boolean
   onClick:  (entry: CalendarEntry) => void
 }) {
+  const leftColor = approvalBorderColor(entry.post)
+
   return (
     <div
       onClick={() => onClick(entry)}
+      style={{ borderLeftColor: leftColor }}
       className={cn(
-        'flex cursor-pointer items-center gap-1.5 rounded-[7px] border px-1.5 py-1 shadow-sm transition-colors',
+        'flex cursor-pointer items-center gap-1.5 rounded-[7px] border-t border-r border-b border-l-4 px-1.5 py-1 shadow-sm transition-colors',
         selected
           ? 'border-blue-300 bg-blue-50 shadow-[0_0_0_1.5px_rgba(59,130,246,0.25)]'
           : 'border-[#E5E5E5] bg-white hover:bg-neutral-50',
