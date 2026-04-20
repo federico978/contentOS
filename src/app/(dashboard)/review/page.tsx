@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { LayoutList, LayoutGrid, CheckCircle2, Loader2 } from 'lucide-react'
+import { LayoutList, LayoutGrid, CheckCircle2, Loader2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { fetchReviewPosts } from '@/lib/api/posts'
@@ -22,6 +22,15 @@ const CHANNEL_TABS: { slug: ChannelSlug; label: string }[] = [
 ]
 
 const VIEW_KEY = 'review-view'
+
+type ApprovalFilter = 'all' | 'no-vote' | 'approved' | 'rejected'
+
+const APPROVAL_FILTER_OPTIONS: { value: ApprovalFilter; label: string }[] = [
+  { value: 'all',      label: 'Aprobación'     },
+  { value: 'no-vote',  label: 'Sin mi voto'    },
+  { value: 'approved', label: 'Aprobados por mí' },
+  { value: 'rejected', label: 'Rechazados por mí' },
+]
 
 // ReviewPanel is imported from @/components/review/ReviewPanel
 
@@ -62,8 +71,9 @@ export default function ReviewPage() {
   const [userId,         setUserId]         = useState<string | null>(null)
   const [userName,       setUserName]       = useState<string>('')
   const [activeTab,      setActiveTab]      = useState<ChannelSlug>('instagram')
-  const [viewMode,       setViewMode]       = useState<'single' | 'grid'>('grid')
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
+  const [viewMode,        setViewMode]        = useState<'single' | 'grid'>('grid')
+  const [selectedPostId,  setSelectedPostId]  = useState<string | null>(null)
+  const [approvalFilter,  setApprovalFilter]  = useState<ApprovalFilter>('all')
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Close panel on click-outside, but let card clicks switch the selection
@@ -114,6 +124,14 @@ export default function ReviewPage() {
 
   const filteredPosts = posts
     .filter((p) => p.post_channels.some((pc) => pc.channel?.slug === activeTab))
+    .filter((p) => {
+      if (approvalFilter === 'all' || !userId) return true
+      const myVote = (p.post_approvals ?? []).find((a) => a.user_id === userId)?.status ?? null
+      if (approvalFilter === 'no-vote')  return myVote === null
+      if (approvalFilter === 'approved') return myVote === 'approved'
+      if (approvalFilter === 'rejected') return myVote === 'rejected'
+      return true
+    })
     .sort((a, b) => {
       const da = channelDate(a, activeTab)
       const db = channelDate(b, activeTab)
@@ -181,19 +199,37 @@ export default function ReviewPage() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-[#E5E5E5] bg-neutral-50 p-0.5">
-          {([['single', LayoutList], ['grid', LayoutGrid]] as const).map(([mode, Icon]) => (
-            <button
-              key={mode}
-              onClick={() => toggleView(mode)}
-              className={cn(
-                'flex h-7 w-7 items-center justify-center rounded-md transition-all',
-                viewMode === mode ? 'bg-white text-[#0A0A0A] shadow-sm' : 'text-neutral-400 hover:text-neutral-600',
-              )}
+        <div className="flex items-center gap-2">
+          {/* Approval filter dropdown */}
+          <div className="relative">
+            <select
+              value={approvalFilter}
+              onChange={(e) => { setApprovalFilter(e.target.value as ApprovalFilter); setSelectedPostId(null) }}
+              className="appearance-none cursor-pointer rounded-lg border border-[#E5E5E5] bg-neutral-50 py-1.5 pl-3 pr-7 text-[12px] text-neutral-500 outline-none transition-colors hover:border-neutral-300"
+              style={approvalFilter !== 'all' ? { color: '#0A0A0A', fontWeight: 500, background: 'white' } : {}}
             >
-              <Icon className="h-4 w-4" />
-            </button>
-          ))}
+              {APPROVAL_FILTER_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-400" />
+          </div>
+
+          {/* View mode toggle */}
+          <div className="flex items-center gap-1 rounded-lg border border-[#E5E5E5] bg-neutral-50 p-0.5">
+            {([['single', LayoutList], ['grid', LayoutGrid]] as const).map(([mode, Icon]) => (
+              <button
+                key={mode}
+                onClick={() => toggleView(mode)}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-md transition-all',
+                  viewMode === mode ? 'bg-white text-[#0A0A0A] shadow-sm' : 'text-neutral-400 hover:text-neutral-600',
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
