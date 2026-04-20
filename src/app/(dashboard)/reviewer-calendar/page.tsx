@@ -95,7 +95,10 @@ function CalendarCard({
       <PostThumb post={entry.post} />
       <div className="min-w-0 flex-1 overflow-hidden">
         <p className="truncate text-[11px] font-medium leading-tight text-neutral-800">
-          {entry.post.title || 'Untitled'}
+          {entry.post.post_channels.find((pc) => pc.channel?.slug === entry.channelSlug)?.copy_override ||
+           entry.post.copy || (
+            <span className="font-normal italic text-neutral-400">Sin copy</span>
+          )}
         </p>
         <div className="mt-0.5">
           <ChannelIcon slug={entry.channelSlug} size={10} />

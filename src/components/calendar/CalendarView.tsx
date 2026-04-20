@@ -35,6 +35,14 @@ const GLASS_BF = {
 
 type PostEntry = { post: PostWithDetails; date: string }
 
+function displayCopy(post: PostWithDetails, channelSlug: ChannelSlug | 'all'): string | null {
+  if (channelSlug !== 'all') {
+    const override = post.post_channels.find((pc) => pc.channel?.slug === channelSlug)?.copy_override
+    if (override) return override
+  }
+  return post.copy || null
+}
+
 // ── Thumbnail helper ──────────────────────────────────────────────────────────
 function PostThumb({ post }: { post: PostWithDetails }) {
   const cover = post.media_files?.find((m) => m.type === 'cover')
@@ -69,9 +77,11 @@ function PostThumb({ post }: { post: PostWithDetails }) {
 function DraggableCard({
   entry,
   onClick,
+  activeChannel,
 }: {
   entry: PostEntry
   onClick: (id: string) => void
+  activeChannel: ChannelSlug | 'all'
 }) {
   // Draggable ID encodes both postId and source date to keep IDs unique across days
   const draggableId = `${entry.post.id}::${format(new Date(entry.date), 'yyyy-MM-dd')}`
@@ -84,6 +94,8 @@ function DraggableCard({
   const slugs = entry.post.post_channels
     .map((pc) => pc.channel?.slug)
     .filter(Boolean) as string[]
+
+  const copy = displayCopy(entry.post, activeChannel)
 
   return (
     <div
@@ -104,7 +116,7 @@ function DraggableCard({
           onClick={(e) => { e.stopPropagation(); onClick(entry.post.id) }}
           style={{ cursor: 'pointer' }}
         >
-          {entry.post.title || 'Untitled'}
+          {copy ?? <span className="font-normal italic text-neutral-400">Sin copy</span>}
         </p>
         {slugs.length > 0 && (
           <div className="mt-0.5 flex items-center gap-0.5">
@@ -119,17 +131,19 @@ function DraggableCard({
 }
 
 // ── Ghost card for DragOverlay ────────────────────────────────────────────────
-function GhostCard({ post }: { post: PostWithDetails }) {
+function GhostCard({ post, activeChannel }: { post: PostWithDetails; activeChannel: ChannelSlug | 'all' }) {
   const slugs = post.post_channels
     .map((pc) => pc.channel?.slug)
     .filter(Boolean) as string[]
+
+  const copy = displayCopy(post, activeChannel)
 
   return (
     <div className="flex w-44 cursor-grabbing items-center gap-1.5 rounded-[7px] border border-neutral-300 bg-white px-1.5 py-1 shadow-xl ring-1 ring-neutral-200 opacity-95">
       <PostThumb post={post} />
       <div className="min-w-0 flex-1 overflow-hidden">
         <p className="truncate text-[11px] font-medium leading-tight text-neutral-800">
-          {post.title || 'Untitled'}
+          {copy ?? <span className="font-normal italic text-neutral-400">Sin copy</span>}
         </p>
         {slugs.length > 0 && (
           <div className="mt-0.5 flex items-center gap-0.5">
@@ -151,12 +165,14 @@ function DroppableDay({
   entries,
   onCardClick,
   onAddClick,
+  activeChannel,
 }: {
   day: Date
   inMonth: boolean
   today: boolean
   entries: PostEntry[]
   onCardClick: (id: string) => void
+  activeChannel: ChannelSlug | 'all'
   onAddClick: () => void
 }) {
   const isoDay = format(day, 'yyyy-MM-dd')
@@ -192,6 +208,7 @@ function DroppableDay({
             key={`${entry.post.id}-${isoDay}`}
             entry={entry}
             onClick={onCardClick}
+            activeChannel={activeChannel}
           />
         ))}
         {overflow > 0 && (
@@ -381,6 +398,7 @@ export function CalendarView({
                 entries={getEntriesForDay(day)}
                 onCardClick={(id) => openPost(id)}
                 onAddClick={() => openNewPost({ scheduled_at: day.toISOString() })}
+                activeChannel={activeChannel}
               />
             ))}
           </div>
@@ -389,7 +407,7 @@ export function CalendarView({
 
       {/* Drag ghost */}
       <DragOverlay dropAnimation={null}>
-        {activePost && <GhostCard post={activePost} />}
+        {activePost && <GhostCard post={activePost} activeChannel={activeChannel} />}
       </DragOverlay>
     </DndContext>
   )
