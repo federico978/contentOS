@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { LayoutList, LayoutGrid, CheckCircle2, Loader2, ChevronDown } from 'lucide-react'
+import { LayoutList, LayoutGrid, AlignJustify, CheckCircle2, Loader2, ChevronDown, Check, X, ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { fetchReviewPosts } from '@/lib/api/posts'
@@ -11,7 +11,8 @@ import { ChannelIcon } from '@/components/ui/channel-icon'
 import { InstagramPostCard } from '@/components/social-cards/InstagramPostCard'
 import { LinkedInPostCard } from '@/components/social-cards/LinkedInPostCard'
 import { XPostCard } from '@/components/social-cards/XPostCard'
-import { ReviewPanel, channelDate } from '@/components/review/ReviewPanel'
+import { ReviewPanel, channelDate, formatChannelDate } from '@/components/review/ReviewPanel'
+import { ReviewIndicators } from '@/components/social-cards/ReviewIndicators'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,101 @@ const APPROVAL_FILTER_OPTIONS: { value: ApprovalFilter; label: string }[] = [
   { value: 'rejected', label: 'Rechazados por mí' },
 ]
 
-// ReviewPanel is imported from @/components/review/ReviewPanel
+// ── Compact row ───────────────────────────────────────────────────────────────
+
+function CompactRow({
+  post, activeTab, selectedPostId, setSelectedPostId, userId, onVote,
+}: {
+  post:              ReviewPost
+  activeTab:         ChannelSlug
+  selectedPostId:    string | null
+  setSelectedPostId: (id: string | null) => void
+  userId:            string | null
+  onVote:            (post: ReviewPost, decision: 'approved' | 'rejected') => Promise<void>
+}) {
+  const [voting, setVoting] = useState(false)
+
+  const selected      = post.id === selectedPostId
+  const toggle        = () => setSelectedPostId(selected ? null : post.id)
+  const scheduledDate = channelDate(post, activeTab)
+  const myVote        = (post.post_approvals ?? []).find((a) => a.user_id === userId)?.status ?? null
+  const approvals     = post.post_approvals ?? []
+  const comments      = post.post_comments  ?? []
+
+  const pc       = post.post_channels.find((c) => c.channel?.slug === activeTab)
+  const copy     = pc?.copy_override || post.copy
+  const media    = post.media_files?.find((m) => m.type !== 'cover')
+  const cover    = post.media_files?.find((m) => m.type === 'cover')
+  const thumbSrc = media?.url ?? cover?.url ?? null
+
+  async function handleVote(decision: 'approved' | 'rejected') {
+    if (voting) return
+    setVoting(true)
+    try { await onVote(post, decision) } finally { setVoting(false) }
+  }
+
+  return (
+    <div
+      onClick={toggle}
+      className={cn(
+        'flex h-[72px] cursor-pointer items-center gap-3 px-4 transition-colors',
+        selected ? 'bg-blue-50' : 'bg-white hover:bg-neutral-50',
+      )}
+    >
+      {/* Thumbnail */}
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+        {thumbSrc ? (
+          <img src={thumbSrc} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageIcon className="h-4 w-4 text-neutral-300" />
+          </div>
+        )}
+      </div>
+
+      {/* Copy + date */}
+      <div className="min-w-0 flex-1">
+        {copy ? (
+          <p className="line-clamp-2 text-[13px] leading-snug text-[#374151]">{copy}</p>
+        ) : (
+          <p className="text-[13px] italic text-neutral-400">Sin copy</p>
+        )}
+        <p className="mt-0.5 text-[11px] text-neutral-400">{formatChannelDate(scheduledDate)}</p>
+      </div>
+
+      {/* Indicators + vote buttons */}
+      <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <ReviewIndicators approvals={approvals} comments={comments} />
+
+        <button
+          disabled={voting}
+          onClick={() => handleVote('approved')}
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-50',
+            myVote === 'approved'
+              ? 'bg-emerald-500 text-white'
+              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100',
+          )}
+        >
+          <Check className="h-4 w-4" strokeWidth={2.5} />
+        </button>
+
+        <button
+          disabled={voting}
+          onClick={() => handleVote('rejected')}
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-50',
+            myVote === 'rejected'
+              ? 'bg-red-500 text-white'
+              : 'bg-red-50 text-red-600 hover:bg-red-100',
+          )}
+        >
+          <X className="h-4 w-4" strokeWidth={2.5} />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ── Card wrapper (picks the right shared card per channel) ────────────────────
 
@@ -71,7 +166,7 @@ export default function ReviewPage() {
   const [userId,         setUserId]         = useState<string | null>(null)
   const [userName,       setUserName]       = useState<string>('')
   const [activeTab,      setActiveTab]      = useState<ChannelSlug>('instagram')
-  const [viewMode,        setViewMode]        = useState<'single' | 'grid'>('grid')
+  const [viewMode,        setViewMode]        = useState<'single' | 'grid' | 'compact'>('grid')
   const [selectedPostId,  setSelectedPostId]  = useState<string | null>(null)
   const [approvalFilter,  setApprovalFilter]  = useState<ApprovalFilter>('all')
   const panelRef = useRef<HTMLDivElement>(null)
@@ -91,10 +186,10 @@ export default function ReviewPage() {
 
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_KEY)
-    if (saved === 'single' || saved === 'grid') setViewMode(saved)
+    if (saved === 'single' || saved === 'grid' || saved === 'compact') setViewMode(saved)
   }, [])
 
-  function toggleView(mode: 'single' | 'grid') {
+  function toggleView(mode: 'single' | 'grid' | 'compact') {
     setViewMode(mode)
     localStorage.setItem(VIEW_KEY, mode)
   }
@@ -217,7 +312,7 @@ export default function ReviewPage() {
 
           {/* View mode toggle */}
           <div className="flex items-center gap-1 rounded-lg border border-[#E5E5E5] bg-neutral-50 p-0.5">
-            {([['single', LayoutList], ['grid', LayoutGrid]] as const).map(([mode, Icon]) => (
+            {([['single', LayoutList], ['grid', LayoutGrid], ['compact', AlignJustify]] as const).map(([mode, Icon]) => (
               <button
                 key={mode}
                 onClick={() => toggleView(mode)}
@@ -279,6 +374,20 @@ export default function ReviewPage() {
                   No hay posts programados para revisar en este canal
                 </p>
               </div>
+            </div>
+          ) : viewMode === 'compact' ? (
+            <div className="overflow-hidden rounded-xl border border-[#E5E5E5] divide-y divide-[#F0F0F0]">
+              {filteredPosts.map((post) => (
+                <CompactRow
+                  key={post.id}
+                  post={post}
+                  activeTab={activeTab}
+                  selectedPostId={selectedPostId}
+                  setSelectedPostId={setSelectedPostId}
+                  userId={userId}
+                  onVote={handleCardVote}
+                />
+              ))}
             </div>
           ) : viewMode === 'single' ? (
             <div className={cn(
