@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 import { Channel, PostStatus, PostWithDetails, ChannelSlug } from '@/lib/types'
 
+export type ApprovalFilterValue = 'all' | 'pending' | 'approved' | 'rejected' | 'mixed'
+
 interface FilterState {
-  status: PostStatus | null
-  channel: ChannelSlug | null
-  search: string
-  columns: 2 | 3 | 4
-  sort: 'created' | 'scheduled'
+  status:   PostStatus | null
+  channel:  ChannelSlug | null
+  search:   string
+  columns:  2 | 3 | 4
+  sort:     'created' | 'scheduled'
+  approval: ApprovalFilterValue
 }
 
 interface PostStore {
@@ -39,7 +42,7 @@ interface PostStore {
 export const usePostStore = create<PostStore>((set, get) => ({
   posts: [],
   channels: [],
-  filters: { status: null, channel: null, search: '', columns: 2, sort: 'created' },
+  filters: { status: null, channel: null, search: '', columns: 2, sort: 'created', approval: 'all' },
   loading: false,
   error: null,
   selectedPostId: null,
@@ -75,6 +78,15 @@ export const usePostStore = create<PostStore>((set, get) => ({
         const q = filters.search.toLowerCase()
         if (!post.title.toLowerCase().includes(q) && !post.copy.toLowerCase().includes(q))
           return false
+      }
+      if (filters.approval !== 'all') {
+        const approvals   = post.post_approvals ?? []
+        const hasApproved = approvals.some((a) => a.status === 'approved')
+        const hasRejected = approvals.some((a) => a.status === 'rejected')
+        if (filters.approval === 'pending'  && approvals.length > 0)          return false
+        if (filters.approval === 'approved' && !(hasApproved && !hasRejected)) return false
+        if (filters.approval === 'rejected' && !hasRejected)                   return false
+        if (filters.approval === 'mixed'    && !(hasApproved && hasRejected))  return false
       }
       return true
     })

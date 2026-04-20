@@ -1,7 +1,7 @@
 'use client'
 
-import { Search, X, ArrowDownUp } from 'lucide-react'
-import { usePostStore } from '@/store/usePostStore'
+import { Search, X, ArrowDownUp, ChevronDown } from 'lucide-react'
+import { usePostStore, ApprovalFilterValue } from '@/store/usePostStore'
 import { CHANNELS } from '@/lib/constants'
 import { ChannelIcon } from '@/components/ui/channel-icon'
 import { GlassButton } from '@/components/ui/glass-button'
@@ -14,6 +14,14 @@ const STATUSES: { value: PostStatus; label: string }[] = [
 ]
 
 const COLS = [2, 3, 4] as const
+
+const APPROVAL_OPTIONS: { value: ApprovalFilterValue; label: string }[] = [
+  { value: 'all',      label: 'Aprobación' },
+  { value: 'pending',  label: 'Pendiente'  },
+  { value: 'approved', label: 'Aprobado'   },
+  { value: 'rejected', label: 'Rechazado'  },
+  { value: 'mixed',    label: 'Mixto'      },
+]
 
 function ColIcon({ cols }: { cols: 2 | 3 | 4 }) {
   return (
@@ -70,6 +78,42 @@ export function PostFilters() {
             {label}
           </GlassButton>
         ))}
+      </div>
+
+      {/* Divider */}
+      <div className="h-4 w-px bg-black/10" />
+
+      {/* Approval filter */}
+      <div className="relative">
+        <select
+          value={filters.approval}
+          onChange={(e) => setFilters({ approval: e.target.value as ApprovalFilterValue })}
+          className="appearance-none cursor-pointer rounded-full py-2 pl-3 pr-7 text-[12px] outline-none transition-all duration-150"
+          style={
+            filters.approval !== 'all'
+              ? {
+                  background: 'rgba(0,0,0,0.08)',
+                  backdropFilter: 'blur(20px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                  border: '1px solid rgba(0,0,0,0.10)',
+                  color: '#111111',
+                  fontWeight: 500,
+                }
+              : {
+                  background: 'rgba(255,255,255,0.6)',
+                  backdropFilter: 'blur(20px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  color: '#555555',
+                }
+          }
+        >
+          {APPROVAL_OPTIONS.map(({ value, label }) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-400" />
       </div>
 
       {/* Divider */}
