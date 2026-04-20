@@ -207,8 +207,8 @@ function CompactRow({
           className={cn(
             'flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-50',
             myVote === 'rejected'
-              ? 'bg-red-500 text-white'
-              : 'bg-red-50 text-red-600 hover:bg-red-100',
+              ? 'bg-orange-500 text-white'
+              : 'bg-orange-50 text-orange-600 hover:bg-orange-100',
           )}
         >
           <X className="h-4 w-4" strokeWidth={2.5} />

@@ -216,12 +216,12 @@ export function ReviewPanel({
               className={cn(
                 'flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold transition-all',
                 myApproval === 'rejected'
-                  ? 'bg-red-500 text-white shadow-sm'
-                  : 'border border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100',
               )}
             >
               <XCircle className="h-4 w-4" />
-              Rechazar
+              Solicitar cambios
             </button>
           </div>
         </div>
@@ -245,8 +245,8 @@ export function ReviewPanel({
               ))}
               {rejected.map((a) => (
                 <div key={a.id} className="flex items-center gap-2.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100">
-                    <XCircle className="h-3 w-3 text-red-600" />
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100">
+                    <XCircle className="h-3 w-3 text-orange-600" />
                   </div>
                   <span className="text-[13px] text-neutral-700">{name(a)}</span>
                 </div>

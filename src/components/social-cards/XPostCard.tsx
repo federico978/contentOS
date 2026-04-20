@@ -127,12 +127,12 @@ export function XPostCard({ post, onClick, selected, scheduledDate = null, myVot
                 className={cn(
                   'flex flex-1 items-center justify-center gap-1.5 py-2 text-[11.5px] font-semibold backdrop-blur-[8px] transition-colors disabled:opacity-60',
                   myVote === 'rejected'
-                    ? 'bg-red-500/90 text-white'
-                    : 'bg-black/50 text-white/80 hover:bg-red-500/80',
+                    ? 'bg-orange-500/90 text-white'
+                    : 'bg-black/50 text-white/80 hover:bg-orange-500/80',
                 )}
               >
                 <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                Rechazar
+                Solicitar cambios
               </button>
             </div>
 

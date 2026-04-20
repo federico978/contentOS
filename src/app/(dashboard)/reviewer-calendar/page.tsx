@@ -69,7 +69,7 @@ function PostThumb({ post }: { post: ReviewPost }) {
 
 function approvalBorderColor(post: ReviewPost): string {
   const approvals = post.post_approvals ?? []
-  if (approvals.some((a) => a.status === 'rejected')) return '#EF4444'
+  if (approvals.some((a) => a.status === 'rejected')) return '#F97316'
   if (approvals.some((a) => a.status === 'approved'))  return '#22C55E'
   return '#D1D5DB'
 }

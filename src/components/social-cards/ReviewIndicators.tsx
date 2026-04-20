@@ -48,7 +48,7 @@ export function ReviewIndicators({
               style={{ marginLeft: i > 0 ? -4 : 0 }}
               className={cn(
                 'flex h-[22px] w-[22px] items-center justify-center rounded-full text-[9px] font-semibold text-white ring-1 ring-white',
-                a.status === 'approved' ? 'bg-[#22C55E]' : 'bg-[#EF4444]',
+                a.status === 'approved' ? 'bg-[#22C55E]' : 'bg-[#F97316]',
               )}
             >
               {initials(a)}
