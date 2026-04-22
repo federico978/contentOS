@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2, ShieldCheck, Users } from 'lucide-react'
 import { format } from 'date-fns'
+import { toArDate } from '@/lib/dates'
 import { UserProfile, UserRole } from '@/lib/types'
 import { listProfiles, updateRole } from '@/lib/api/profiles'
 import { useProfileStore } from '@/store/useProfileStore'
@@ -129,7 +130,7 @@ export default function AdminPage() {
                   {/* Role selector */}
                   <div className="flex items-center gap-3">
                     <span className="text-[11px] text-neutral-400">
-                      Desde {format(new Date(profile.created_at), 'dd/MM/yy')}
+                      Desde {format(toArDate(profile.created_at), 'dd/MM/yy')}
                     </span>
 
                     {updating === profile.id ? (

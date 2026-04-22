@@ -245,7 +245,7 @@ function PostDetailCard({ post, visible }: { post: PostWithDetails; visible: boo
           <p className="text-[12.5px] font-semibold text-neutral-900 leading-tight">bigsur.energy</p>
           {post.scheduled_at && (
             <p className="text-[10px] text-neutral-400">
-              {new Date(post.scheduled_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+              {new Date(post.scheduled_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', timeZone: 'America/Argentina/Buenos_Aires' })}
             </p>
           )}
         </div>

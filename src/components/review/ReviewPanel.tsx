@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { toArDate } from '@/lib/dates'
 import { Loader2, X, Send, CheckCircle, XCircle, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { upsertApproval, deleteApproval, createComment, updateComment, deleteComment } from '@/lib/api/profiles'
@@ -17,7 +18,7 @@ export function channelDate(post: ReviewPost, slug: ChannelSlug): string | null 
 
 export function formatChannelDate(date: string | null): string {
   if (!date) return 'Sin fecha programada'
-  const d   = new Date(date)
+  const d   = toArDate(date)
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   return `${cap(format(d, 'EEEE', { locale: es }))} ${format(d, 'd')} de ${cap(format(d, 'MMMM', { locale: es }))}`
 }
@@ -155,7 +156,7 @@ function CommentItem({
             <span className="text-[10.5px] text-neutral-400">(editado)</span>
           )}
           <span className="text-[11px] text-neutral-400">
-            {format(new Date(comment.created_at), 'dd/MM HH:mm')}
+            {format(toArDate(comment.created_at), 'dd/MM HH:mm')}
           </span>
           {isOwn && hovered && !editing && !confirmDelete && (
             <>

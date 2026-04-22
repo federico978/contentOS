@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { format } from 'date-fns'
+import { toArDate } from '@/lib/dates'
 import {
   MoreHorizontal, Eye, Pencil, Trash2, Copy, Download,
   ImageIcon, Play, ThumbsUp, MessageSquare,
@@ -289,7 +290,7 @@ export function PostCard({ post, onHover, onLeave }: Props) {
               return (
                 <span key={pc.id} className="flex items-center gap-1 text-[10.5px] text-neutral-400">
                   <ChannelIcon slug={pc.channel.slug as ChannelSlug} size={10} gray />
-                  {format(new Date(date), 'MMM d')}
+                  {format(toArDate(date), 'MMM d')}
                 </span>
               )
             })}

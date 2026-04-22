@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X, CheckCircle, XCircle, Clock, MessageSquare, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
+import { toArDate } from '@/lib/dates'
 import { PostComment, PostApproval } from '@/lib/types'
 import { getComments, getApprovals } from '@/lib/api/profiles'
 
@@ -89,7 +90,7 @@ export function ApprovalsModal({ postId, postTitle, onClose }: Props) {
                               {displayName(a.user_profiles)}
                             </span>
                             <span className="text-[11px] text-neutral-400 shrink-0">
-                              {format(new Date(a.created_at), 'dd/MM HH:mm')}
+                              {format(toArDate(a.created_at), 'dd/MM HH:mm')}
                             </span>
                           </div>
                           <span className={`text-[11.5px] font-medium ${a.status === 'approved' ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -123,7 +124,7 @@ export function ApprovalsModal({ postId, postTitle, onClose }: Props) {
                               {displayName(c.user_profiles)}
                             </span>
                             <span className="text-[11px] text-neutral-400 shrink-0">
-                              {format(new Date(c.created_at), 'dd/MM HH:mm')}
+                              {format(toArDate(c.created_at), 'dd/MM HH:mm')}
                             </span>
                           </div>
                           <p className="mt-0.5 text-[12px] text-neutral-600">{c.content}</p>

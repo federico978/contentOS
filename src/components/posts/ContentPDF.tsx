@@ -369,6 +369,7 @@ function PostDetailPages({ posts, month }: { posts: PostWithDetails[]; month: Da
                       <Text style={s.postDate}>
                         {new Date(date).toLocaleDateString('es-AR', {
                           day: 'numeric', month: 'short', year: 'numeric',
+                          timeZone: 'America/Argentina/Buenos_Aires',
                         })}
                       </Text>
                     )}

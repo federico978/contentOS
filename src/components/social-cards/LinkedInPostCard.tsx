@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ThumbsUp, MessageSquare, Repeat2, Send, Globe, MoreHorizontal, Play, Check, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { toArDate } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { PostWithDetails, PostApproval, PostComment } from '@/lib/types'
 import { BigSurAvatar } from '@/components/ui/bigsur-avatar'
@@ -43,7 +44,7 @@ function parseLinkedInText(text: string): React.ReactNode[] {
 
 function fmtChannelDate(date: string | null): string {
   if (!date) return 'Sin fecha programada'
-  const d = new Date(date)
+  const d = toArDate(date)
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   return `${cap(format(d, 'EEEE', { locale: es }))} ${format(d, 'd')} de ${cap(format(d, 'MMMM', { locale: es }))}`
 }
