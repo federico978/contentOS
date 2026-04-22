@@ -62,8 +62,17 @@ export default function PostsPage() {
   if (selectedDate) {
     const day = new Date(selectedDate)
     posts = posts.filter((p) => {
-      if (p.scheduled_at && isSameDay(toArDate(p.scheduled_at), day)) return true
-      return p.post_channels.some((pc) => pc.scheduled_at && isSameDay(toArDate(pc.scheduled_at), day))
+      // Use each channel's effective date (channel override first, then post fallback).
+      // This matches the CalendarView logic so a post only appears on the day
+      // its channels are actually scheduled, even if post.scheduled_at differs.
+      if (p.post_channels.length > 0) {
+        return p.post_channels.some((pc) => {
+          const date = pc.scheduled_at || p.scheduled_at
+          return !!date && isSameDay(toArDate(date), day)
+        })
+      }
+      // Fallback for posts with no channels yet
+      return !!p.scheduled_at && isSameDay(toArDate(p.scheduled_at), day)
     })
   }
 
