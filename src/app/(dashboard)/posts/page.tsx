@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Upload, ImageIcon, FileDown } from 'lucide-react'
 import { isSameDay } from 'date-fns'
+import { toArDate } from '@/lib/dates'
 import {
   DndContext, DragOverlay, DragStartEvent, DragEndEvent,
   pointerWithin, useSensor, useSensors,
@@ -61,8 +62,8 @@ export default function PostsPage() {
   if (selectedDate) {
     const day = new Date(selectedDate)
     posts = posts.filter((p) => {
-      if (p.scheduled_at && isSameDay(new Date(p.scheduled_at), day)) return true
-      return p.post_channels.some((pc) => pc.scheduled_at && isSameDay(new Date(pc.scheduled_at), day))
+      if (p.scheduled_at && isSameDay(toArDate(p.scheduled_at), day)) return true
+      return p.post_channels.some((pc) => pc.scheduled_at && isSameDay(toArDate(pc.scheduled_at), day))
     })
   }
 

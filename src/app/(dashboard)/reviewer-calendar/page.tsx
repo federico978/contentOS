@@ -8,6 +8,7 @@ import {
 } from 'date-fns'
 import { ImageIcon, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toArDate } from '@/lib/dates'
 import { createClient } from '@/lib/supabase/client'
 import { fetchReviewPostsFrom, fetchReviewPostsHistory } from '@/lib/api/posts'
 import { ReviewPost, PostApproval, PostComment, ChannelSlug } from '@/lib/types'
@@ -201,7 +202,7 @@ function MonthSection({
         if (!slug) return
         if (activeChannel !== 'all' && slug !== activeChannel) return
         const date = pc.scheduled_at ?? post.scheduled_at
-        if (!date || !isSameDay(new Date(date), day)) return
+        if (!date || !isSameDay(toArDate(date), day)) return
         entries.push({ post, channelSlug: slug, date })
       })
     })

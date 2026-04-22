@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
 import { PostWithDetails, ChannelSlug } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { toArDate } from '@/lib/dates'
 
 const WEEKDAYS   = ['L', 'M', 'X', 'J', 'V']
 const MONTHS_ES  = [
@@ -80,9 +81,9 @@ export function MiniCalendar({ posts, hoveredPostId, selectedDate, onDayClick, d
     if (activeChannel !== 'all') {
       const pc = hoveredPost.post_channels.find((c) => c.channel?.slug === activeChannel)
       const d = pc?.scheduled_at || hoveredPost.scheduled_at
-      return d ? new Date(d) : null
+      return d ? toArDate(d) : null
     }
-    return hoveredPost.scheduled_at ? new Date(hoveredPost.scheduled_at) : null
+    return hoveredPost.scheduled_at ? toArDate(hoveredPost.scheduled_at) : null
   })()
   const selectedDay = selectedDate ? new Date(selectedDate) : null
   const droppedDay  = droppedDate  ? new Date(droppedDate)  : null
@@ -94,7 +95,7 @@ export function MiniCalendar({ posts, hoveredPostId, selectedDate, onDayClick, d
         if (!pc.channel?.slug) return
         if (activeChannel !== 'all' && pc.channel.slug !== activeChannel) return
         const date = pc.scheduled_at || p.scheduled_at
-        if (!date || !isSameDay(new Date(date), day)) return
+        if (!date || !isSameDay(toArDate(date), day)) return
         seen.add(pc.channel.slug)
       })
     })

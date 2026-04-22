@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { usePostStore } from '@/store/usePostStore'
 import { updatePostScheduledAt, upsertChannelScheduledAt } from '@/lib/api/posts'
 import { SmartPointerSensor } from '@/lib/dnd-sensors'
+import { toArDate } from '@/lib/dates'
 import { toast } from 'sonner'
 
 const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
@@ -275,7 +276,7 @@ function MonthSection({
         if (!pc.channel?.slug) return
         if (activeChannel !== 'all' && pc.channel.slug !== activeChannel) return
         const date = pc.scheduled_at || p.scheduled_at
-        if (!date || !isSameDay(new Date(date), day)) return
+        if (!date || !isSameDay(toArDate(date), day)) return
         if (seen.has(p.id)) return
         seen.add(p.id)
         entries.push({ post: p, date })
