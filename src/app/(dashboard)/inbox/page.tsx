@@ -449,80 +449,31 @@ export default function InboxPage() {
                   {/* ── Expanded detail ── */}
                   {expanded && (
                     <div className="border-t border-[#F0F0F0] bg-neutral-50 px-6 py-4">
-                      <div className="grid grid-cols-[1fr_280px] gap-6">
+                      <div className="grid grid-cols-[1fr_240px] gap-6">
 
-                        {/* Left: resumen + mensaje */}
-                        <div className="space-y-3">
-                          <div>
-                            <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
-                              Resumen
-                            </p>
-                            <InlineField
-                              value={entry.resumen}
-                              type="text"
-                              onSave={(v) => patchField(entry.id, { resumen: v || entry.resumen })}
-                              placeholder="Añadir resumen…"
-                              staticCls="text-[12.5px] leading-relaxed text-neutral-700"
-                            />
-                          </div>
-                          <div>
-                            <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
-                              Mensaje original
-                            </p>
-                            <InlineField
-                              value={entry.mensaje_textual}
-                              type="textarea"
-                              onSave={(v) => patchField(entry.id, { mensaje_textual: v })}
-                              placeholder="Sin mensaje…"
-                              variant="boxed"
-                            />
-                          </div>
+                        {/* Left: mensaje original */}
+                        <div>
+                          <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
+                            Mensaje original
+                          </p>
+                          <InlineField
+                            value={entry.mensaje_textual}
+                            type="textarea"
+                            onSave={(v) => patchField(entry.id, { mensaje_textual: v })}
+                            placeholder="Sin mensaje…"
+                            variant="boxed"
+                          />
                         </div>
 
-                        {/* Right: meta fields */}
+                        {/* Right: email + fecha */}
                         <div className="space-y-3">
-                          <EditableMetaRow
-                            label="Canal"
-                            value={entry.canal}
-                            type="select"
-                            options={CANAL_OPTS}
-                            onSave={(v) => patchField(entry.id, { canal: v as CanalType })}
-                          />
                           <EditableMetaRow
                             label="Email"
                             value={entry.email}
                             type="text"
                             placeholder="no disponible"
                             onSave={(v) => patchField(entry.id, { email: v.trim() })}
-                            staticCls="break-all font-normal not-italic"
-                          />
-                          <EditableMetaRow
-                            label="Empresa"
-                            value={entry.empresa}
-                            type="text"
-                            placeholder="no disponible"
-                            onSave={(v) => patchField(entry.id, { empresa: v.trim() || 'no disponible' })}
-                          />
-                          <EditableMetaRow
-                            label="Cargo"
-                            value={entry.cargo}
-                            type="text"
-                            placeholder="no disponible"
-                            onSave={(v) => patchField(entry.id, { cargo: v.trim() || 'no disponible' })}
-                          />
-                          <EditableMetaRow
-                            label="Categoría"
-                            value={entry.categoria}
-                            type="select"
-                            options={CATEGORIA_OPTS}
-                            onSave={(v) => patchField(entry.id, { categoria: v as CategoriaType })}
-                          />
-                          <EditableMetaRow
-                            label="Prioridad"
-                            value={entry.prioridad}
-                            type="select"
-                            options={PRIORIDAD_OPTS}
-                            onSave={(v) => patchField(entry.id, { prioridad: v as PrioridadType })}
+                            staticCls="break-all"
                           />
                           <EditableMetaRow
                             label="Fecha"
@@ -534,21 +485,6 @@ export default function InboxPage() {
                               const [y, m, d] = v.split('-')
                               patchField(entry.id, { fecha: `${d}.${m}.${y}`, dateISO: v })
                             }}
-                          />
-                          {(!!entry.email || !!entry.linkedin_url) && (
-                            <div>
-                              <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
-                                Acción
-                              </p>
-                              <ContactAction entry={entry} variant="expanded" />
-                            </div>
-                          )}
-                          <EditableMetaRow
-                            label="Notas"
-                            value={entry.notas}
-                            type="textarea"
-                            placeholder="Añadir notas…"
-                            onSave={(v) => patchField(entry.id, { notas: v.trim() || 'no disponible' })}
                           />
                         </div>
                       </div>
