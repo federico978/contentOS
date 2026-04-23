@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 const CATEGORIA_LABEL: Record<CategoriaType, string> = {
   hiring: 'Hiring', investor: 'Investor', partnership: 'Partnership',
   sales: 'Sales', media: 'Media', general: 'General',
+  land: 'Terreno', press: 'Prensa',
 }
 
 const CATEGORIA_STYLE: Record<CategoriaType, string> = {
@@ -23,6 +24,8 @@ const CATEGORIA_STYLE: Record<CategoriaType, string> = {
   sales:       'bg-orange-50  text-orange-700  border border-orange-100',
   media:       'bg-rose-50    text-rose-700    border border-rose-100',
   general:     'bg-neutral-100 text-neutral-600 border border-neutral-200',
+  land:        'bg-amber-50   text-amber-800   border border-amber-100',
+  press:       'bg-indigo-50  text-indigo-700  border border-indigo-100',
 }
 
 const PRIORIDAD_LABEL: Record<PrioridadType, string> = {
@@ -51,7 +54,7 @@ const ESTADO_STYLE: Record<EstadoType, string> = {
 
 const PRIORIDAD_ORDER: Record<PrioridadType, number> = { high: 3, medium: 2, low: 1 }
 const ESTADO_ORDER:    Record<EstadoType, number>    = { pendiente: 1, en_curso: 2, respondido: 3, descartado: 4 }
-const CATEGORIA_ORDER: Record<CategoriaType, number> = { hiring: 1, investor: 2, partnership: 3, sales: 4, media: 5, general: 6 }
+const CATEGORIA_ORDER: Record<CategoriaType, number> = { hiring: 1, investor: 2, partnership: 3, sales: 4, media: 5, general: 6, land: 7, press: 8 }
 
 // ── Select option arrays ───────────────────────────────────────────────────────
 
@@ -62,6 +65,7 @@ const CATEGORIA_OPTS: { value: string; label: string }[] = [
   { value: 'hiring', label: 'Hiring' }, { value: 'investor', label: 'Investor' },
   { value: 'partnership', label: 'Partnership' }, { value: 'sales', label: 'Sales' },
   { value: 'media', label: 'Media' }, { value: 'general', label: 'General' },
+  { value: 'land', label: 'Terreno' }, { value: 'press', label: 'Prensa' },
 ]
 const PRIORIDAD_OPTS: { value: string; label: string }[] = [
   { value: 'high', label: 'Alta' }, { value: 'medium', label: 'Media' }, { value: 'low', label: 'Baja' },
@@ -92,6 +96,7 @@ interface NewForm {
   empresa:         string
   cargo:           string
   email:           string
+  telefono:        string
   linkedin_url:    string
   mensaje_textual: string
   resumen:         string
@@ -107,6 +112,7 @@ const EMPTY_FORM: NewForm = {
   empresa:         '',
   cargo:           '',
   email:           '',
+  telefono:        '',
   linkedin_url:    '',
   mensaje_textual: '',
   resumen:         '',
@@ -182,6 +188,7 @@ export default function InboxPage() {
       empresa:         newForm.empresa.trim() || 'no disponible',
       cargo:           newForm.cargo.trim()   || 'no disponible',
       email:           newForm.email.trim(),
+      telefono:        newForm.telefono.trim(),
       linkedin_url:    newForm.linkedin_url.trim(),
       mensaje_textual: newForm.mensaje_textual,
       resumen:         newForm.resumen.trim() || newForm.mensaje_textual.slice(0, 120),
@@ -476,6 +483,13 @@ export default function InboxPage() {
                             staticCls="break-all"
                           />
                           <EditableMetaRow
+                            label="Teléfono"
+                            value={entry.telefono}
+                            type="text"
+                            placeholder="no disponible"
+                            onSave={(v) => patchField(entry.id, { telefono: v.trim() })}
+                          />
+                          <EditableMetaRow
                             label="Fecha"
                             value={entry.dateISO}
                             displayValue={entry.fecha}
@@ -579,6 +593,14 @@ export default function InboxPage() {
                 />
               </FieldGroup>
             )}
+            <FieldGroup label="Teléfono">
+              <input
+                type="text" placeholder="+54 9 11 1234 5678"
+                value={newForm.telefono}
+                onChange={(e) => setNewForm((f) => ({ ...f, telefono: e.target.value }))}
+                className={INPUT_CLS}
+              />
+            </FieldGroup>
             {newForm.canal === 'linkedin' && (
               <FieldGroup label="URL de LinkedIn">
                 <input
