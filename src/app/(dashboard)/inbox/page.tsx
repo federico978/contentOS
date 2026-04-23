@@ -3,8 +3,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   ChevronDown, ChevronUp, Mail, X as XIcon, Search, Plus, ExternalLink, Pencil, Trash2,
-  Loader2,
+  Loader2, FileSpreadsheet,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import {
   InboxEntry, CanalType, CategoriaType, PrioridadType, EstadoType,
 } from '@/lib/data/inbox'
@@ -215,6 +216,60 @@ export default function InboxPage() {
     )
   }
 
+  function exportToExcel() {
+    const clean = (v: string) => (v === 'no disponible' || v === '-' ? '' : v)
+
+    const LABEL_PRIORIDAD: Record<string, string> = { high: 'Alta', medium: 'Media', low: 'Baja' }
+    const LABEL_ESTADO:    Record<string, string> = {
+      pendiente: 'Pendiente', en_curso: 'En curso',
+      respondido: 'Respondido', descartado: 'Descartado',
+    }
+    const LABEL_CANAL:     Record<string, string> = { email: 'Email', linkedin: 'LinkedIn', otro: 'Otro' }
+    const LABEL_CAT:       Record<string, string> = {
+      hiring: 'Hiring', investor: 'Investor', partnership: 'Partnership',
+      sales: 'Sales', media: 'Media', general: 'General',
+      land: 'Terreno', press: 'Prensa', marketing: 'Marketing',
+    }
+
+    const rows = entries.map((e) => ({
+      'Fecha':            clean(e.fecha),
+      'Nombre':           clean(e.nombre),
+      'Empresa':          clean(e.empresa),
+      'Cargo':            clean(e.cargo),
+      'Email':            clean(e.email),
+      'Teléfono':         clean(e.telefono),
+      'Canal':            LABEL_CANAL[e.canal]        ?? clean(e.canal),
+      'Resumen':          clean(e.resumen),
+      'Mensaje Original': clean(e.mensaje_textual),
+      'Categoría':        LABEL_CAT[e.categoria]      ?? clean(e.categoria),
+      'Prioridad':        LABEL_PRIORIDAD[e.prioridad] ?? clean(e.prioridad),
+      'Estado':           LABEL_ESTADO[e.estadoActual] ?? clean(e.estadoActual),
+      'Notas':            clean(e.notas),
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(rows)
+
+    // Bold header row
+    const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1')
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: col })]
+      if (cell) cell.s = { font: { bold: true } }
+    }
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 12 }, { wch: 22 }, { wch: 20 }, { wch: 18 }, { wch: 28 },
+      { wch: 16 }, { wch: 10 }, { wch: 40 }, { wch: 60 }, { wch: 14 },
+      { wch: 10 }, { wch: 12 }, { wch: 30 },
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Inbox')
+
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    XLSX.writeFile(wb, `consultas_inbox_${today}.xlsx`)
+  }
+
   async function handleSubmitNew(e: React.FormEvent) {
     e.preventDefault()
     const [y, m, d] = newForm.fecha.split('-')
@@ -314,14 +369,24 @@ export default function InboxPage() {
               {entries.length} / {rawEntries.length}
             </span>
           </div>
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="flex items-center gap-1.5 rounded-full bg-[#111111] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:bg-neutral-800 hover:-translate-y-px active:scale-[0.99]"
-            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
-          >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            Nueva Consulta
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportToExcel}
+              disabled={entries.length === 0}
+              className="flex items-center gap-1.5 rounded-full border border-[#D9D9D9] bg-white px-3 py-1.5 text-[12.5px] font-medium text-neutral-600 transition-all hover:border-neutral-400 hover:bg-neutral-50 hover:-translate-y-px active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Exportar a Excel
+            </button>
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="flex items-center gap-1.5 rounded-full bg-[#111111] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:bg-neutral-800 hover:-translate-y-px active:scale-[0.99]"
+              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Nueva Consulta
+            </button>
+          </div>
         </div>
       </div>
 
