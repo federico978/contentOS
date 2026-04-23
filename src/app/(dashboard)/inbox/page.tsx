@@ -527,7 +527,7 @@ export default function InboxPage() {
                               patchField(entry.id, { fecha: `${d}.${m}.${y}`, dateISO: v })
                             }}
                           />
-                          {(entry.email || entry.linkedin_url) && (
+                          {(entry.canal === 'email' || !!entry.email || !!entry.linkedin_url) && (
                             <div>
                               <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
                                 Acción
@@ -958,36 +958,44 @@ function ContactAction({
   )
   const iconSize = variant === 'expanded' ? 'h-3.5 w-3.5' : 'h-3 w-3'
 
-  if (entry.email) {
-    return (
-      <a
-        href={gmailComposeUrl(entry.email, entry.nombre)}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        className={btnCls}
-      >
-        <Mail className={cn(iconSize, 'shrink-0')} strokeWidth={1.75} />
-        {variant === 'expanded' ? 'Responder por Gmail' : 'Gmail'}
-      </a>
-    )
+  // Show Gmail if canal is "email" OR if an email address is stored in the field
+  const showGmail    = entry.canal === 'email' || (!!entry.email && entry.email !== 'no disponible')
+  // Show LinkedIn only when there is an actual URL to link to
+  const showLinkedin = !!entry.linkedin_url && entry.linkedin_url !== 'no disponible'
+
+  if (!showGmail && !showLinkedin) {
+    return <span className="text-[11px] text-neutral-300">—</span>
   }
-  if (entry.linkedin_url) {
-    return (
-      <a
-        href={entry.linkedin_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        className={btnCls}
-      >
-        <LinkedInIcon size={variant === 'expanded' ? 14 : 11} />
-        {variant === 'expanded' ? 'Ver en LinkedIn' : 'LinkedIn'}
-        <ExternalLink className={cn('shrink-0 text-neutral-400', variant === 'expanded' ? 'h-3 w-3' : 'h-2.5 w-2.5')} />
-      </a>
-    )
-  }
-  return <span className="text-[11px] text-neutral-300">—</span>
+
+  return (
+    <div className={cn('flex flex-wrap gap-1.5', variant === 'expanded' && 'gap-2')}>
+      {showGmail && (
+        <a
+          href={gmailComposeUrl(entry.email, entry.nombre)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={btnCls}
+        >
+          <Mail className={cn(iconSize, 'shrink-0')} strokeWidth={1.75} />
+          {variant === 'expanded' ? 'Responder por Gmail' : 'Gmail'}
+        </a>
+      )}
+      {showLinkedin && (
+        <a
+          href={entry.linkedin_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={btnCls}
+        >
+          <LinkedInIcon size={variant === 'expanded' ? 14 : 11} />
+          {variant === 'expanded' ? 'Ver en LinkedIn' : 'LinkedIn'}
+          <ExternalLink className={cn('shrink-0 text-neutral-400', variant === 'expanded' ? 'h-3 w-3' : 'h-2.5 w-2.5')} />
+        </a>
+      )}
+    </div>
+  )
 }
 
 function FilterSelect({
