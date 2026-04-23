@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 const CATEGORIA_LABEL: Record<CategoriaType, string> = {
   hiring: 'Hiring', investor: 'Investor', partnership: 'Partnership',
   sales: 'Sales', media: 'Media', general: 'General',
-  land: 'Terreno', press: 'Prensa',
+  land: 'Terreno', press: 'Prensa', marketing: 'Marketing',
 }
 
 const CATEGORIA_STYLE: Record<CategoriaType, string> = {
@@ -26,6 +26,7 @@ const CATEGORIA_STYLE: Record<CategoriaType, string> = {
   general:     'bg-neutral-100 text-neutral-600 border border-neutral-200',
   land:        'bg-amber-50   text-amber-800   border border-amber-100',
   press:       'bg-indigo-50  text-indigo-700  border border-indigo-100',
+  marketing:   'bg-pink-50    text-pink-700    border border-pink-100',
 }
 
 const PRIORIDAD_LABEL: Record<PrioridadType, string> = {
@@ -54,7 +55,7 @@ const ESTADO_STYLE: Record<EstadoType, string> = {
 
 const PRIORIDAD_ORDER: Record<PrioridadType, number> = { high: 3, medium: 2, low: 1 }
 const ESTADO_ORDER:    Record<EstadoType, number>    = { pendiente: 1, en_curso: 2, respondido: 3, descartado: 4 }
-const CATEGORIA_ORDER: Record<CategoriaType, number> = { hiring: 1, investor: 2, partnership: 3, sales: 4, media: 5, general: 6, land: 7, press: 8 }
+const CATEGORIA_ORDER: Record<CategoriaType, number> = { hiring: 1, investor: 2, partnership: 3, sales: 4, media: 5, general: 6, land: 7, press: 8, marketing: 9 }
 
 // ── Select option arrays ───────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ const CATEGORIA_OPTS: { value: string; label: string }[] = [
   { value: 'partnership', label: 'Partnership' }, { value: 'sales', label: 'Sales' },
   { value: 'media', label: 'Media' }, { value: 'general', label: 'General' },
   { value: 'land', label: 'Terreno' }, { value: 'press', label: 'Prensa' },
+  { value: 'marketing', label: 'Marketing' },
 ]
 const PRIORIDAD_OPTS: { value: string; label: string }[] = [
   { value: 'high', label: 'Alta' }, { value: 'medium', label: 'Media' }, { value: 'low', label: 'Baja' },
