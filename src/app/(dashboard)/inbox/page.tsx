@@ -490,12 +490,12 @@ export default function InboxPage() {
                     </p>
 
                     {/* Categoría */}
-                    <span className={cn(
-                      'inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10.5px] font-medium',
-                      CATEGORIA_STYLE[entry.categoria]
-                    )}>
-                      {CATEGORIA_LABEL[entry.categoria]}
-                    </span>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <CategoriaDropdown
+                        value={entry.categoria}
+                        onChange={(v) => patchField(entry.id, { categoria: v })}
+                      />
+                    </div>
 
                     {/* Prioridad */}
                     <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
@@ -1001,6 +1001,68 @@ function EditableMetaRow({
         placeholder={placeholder}
         staticCls={cn('text-[12px]', staticCls)}
       />
+    </div>
+  )
+}
+
+// ── CategoriaDropdown ─────────────────────────────────────────────────────────
+// Inline dropdown to change category directly from the table row badge.
+
+const CATEGORIA_ALL = Object.keys(CATEGORIA_LABEL) as CategoriaType[]
+
+function CategoriaDropdown({
+  value,
+  onChange,
+}: {
+  value:    CategoriaType
+  onChange: (v: CategoriaType) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          'inline-flex items-center gap-1 rounded-full pl-2 pr-1 py-0.5 text-[10.5px] font-medium transition-opacity hover:opacity-80',
+          CATEGORIA_STYLE[value]
+        )}
+      >
+        {CATEGORIA_LABEL[value]}
+        <ChevronDown className="h-2.5 w-2.5 opacity-70" strokeWidth={2} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 w-[130px] overflow-hidden rounded-lg border border-[#D9D9D9] bg-white py-1 shadow-md">
+          {CATEGORIA_ALL.map((c) => (
+            <button
+              key={c}
+              onClick={() => { onChange(c); setOpen(false) }}
+              className={cn(
+                'flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-neutral-50',
+                value === c && 'bg-neutral-50'
+              )}
+            >
+              <span className={cn(
+                'inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-medium',
+                CATEGORIA_STYLE[c]
+              )}>
+                {CATEGORIA_LABEL[c]}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
