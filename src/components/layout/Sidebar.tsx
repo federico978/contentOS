@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, LayoutList, Plus, LogOut, MonitorPlay, ClipboardCheck, ShieldCheck } from 'lucide-react'
+import { CalendarDays, LayoutList, Plus, LogOut, MonitorPlay, ClipboardCheck, ShieldCheck, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserRole } from '@/lib/types'
 
@@ -10,6 +10,7 @@ const ADMIN_NAV = [
   { href: '/posts',    label: 'Posts',    icon: LayoutList },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/preview',  label: 'Preview',  icon: MonitorPlay },
+  { href: '/inbox',    label: 'Inbox',    icon: Inbox },
   { href: '/admin',    label: 'Admin',    icon: ShieldCheck },
 ]
 
