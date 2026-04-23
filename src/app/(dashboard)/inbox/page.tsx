@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import {
-  ChevronDown, ChevronUp, Mail, X as XIcon, Search, Plus, ExternalLink,
+  ChevronDown, ChevronUp, Mail, X as XIcon, Search, Plus, ExternalLink, Pencil,
 } from 'lucide-react'
 import {
   INBOX_DATA, InboxEntry, CanalType, CategoriaType, PrioridadType, EstadoType,
@@ -52,6 +52,20 @@ const ESTADO_STYLE: Record<EstadoType, string> = {
 const PRIORIDAD_ORDER: Record<PrioridadType, number> = { high: 3, medium: 2, low: 1 }
 const ESTADO_ORDER:    Record<EstadoType, number>    = { pendiente: 1, en_curso: 2, respondido: 3, descartado: 4 }
 const CATEGORIA_ORDER: Record<CategoriaType, number> = { hiring: 1, investor: 2, partnership: 3, sales: 4, media: 5, general: 6 }
+
+// ── Select option arrays ───────────────────────────────────────────────────────
+
+const CANAL_OPTS: { value: string; label: string }[] = [
+  { value: 'email', label: 'Email' }, { value: 'linkedin', label: 'LinkedIn' }, { value: 'otro', label: 'Otro' },
+]
+const CATEGORIA_OPTS: { value: string; label: string }[] = [
+  { value: 'hiring', label: 'Hiring' }, { value: 'investor', label: 'Investor' },
+  { value: 'partnership', label: 'Partnership' }, { value: 'sales', label: 'Sales' },
+  { value: 'media', label: 'Media' }, { value: 'general', label: 'General' },
+]
+const PRIORIDAD_OPTS: { value: string; label: string }[] = [
+  { value: 'high', label: 'Alta' }, { value: 'medium', label: 'Media' }, { value: 'low', label: 'Baja' },
+]
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -121,6 +135,7 @@ export default function InboxPage() {
   const [searchQuery,    setSearchQuery]    = useState('')
   const [expandedId,     setExpandedId]     = useState<string | null>(null)
   const [statusOverride, setStatusOverride] = useState<Record<string, EstadoType>>({})
+  const [fieldOverrides, setFieldOverrides] = useState<Record<string, Partial<InboxEntry>>>({})
   const [showNewModal,   setShowNewModal]   = useState(false)
   const [newForm,        setNewForm]        = useState<NewForm>(EMPTY_FORM)
   const [customEntries,  setCustomEntries]  = useState<InboxEntry[]>([])
@@ -131,6 +146,10 @@ export default function InboxPage() {
 
   function updateEstado(id: string, estado: EstadoType) {
     setStatusOverride((prev) => ({ ...prev, [id]: estado }))
+  }
+
+  function patchField(id: string, updates: Partial<InboxEntry>) {
+    setFieldOverrides((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...updates } }))
   }
 
   function toggleExpand(id: string) {
@@ -181,13 +200,16 @@ export default function InboxPage() {
   const hasSearch        = searchQuery.trim() !== ''
 
   const entries = useMemo(() => {
-    let data = allData.map((e) => ({ ...e, estadoActual: getEstado(e) }))
+    let data = allData.map((e) => {
+      const overridden = { ...e, ...(fieldOverrides[e.id] ?? {}) }
+      return { ...overridden, estadoActual: statusOverride[e.id] ?? overridden.estado }
+    })
 
     // Filters
-    if (filters.canal)     data = data.filter((e) => e.canal         === filters.canal)
-    if (filters.categoria) data = data.filter((e) => e.categoria     === filters.categoria)
-    if (filters.prioridad) data = data.filter((e) => e.prioridad     === filters.prioridad)
-    if (filters.estado)    data = data.filter((e) => e.estadoActual  === filters.estado)
+    if (filters.canal)     data = data.filter((e) => e.canal        === filters.canal)
+    if (filters.categoria) data = data.filter((e) => e.categoria    === filters.categoria)
+    if (filters.prioridad) data = data.filter((e) => e.prioridad    === filters.prioridad)
+    if (filters.estado)    data = data.filter((e) => e.estadoActual === filters.estado)
 
     // Search
     if (hasSearch) {
@@ -203,18 +225,18 @@ export default function InboxPage() {
     data.sort((a, b) => {
       let cmp = 0
       switch (sort.col) {
-        case 'fecha':     cmp = a.dateISO.localeCompare(b.dateISO);                                  break
-        case 'nombre':    cmp = a.nombre.localeCompare(b.nombre, 'es');                              break
-        case 'categoria': cmp = CATEGORIA_ORDER[a.categoria] - CATEGORIA_ORDER[b.categoria];         break
-        case 'prioridad': cmp = PRIORIDAD_ORDER[a.prioridad] - PRIORIDAD_ORDER[b.prioridad];         break
-        case 'estado':    cmp = ESTADO_ORDER[a.estadoActual] - ESTADO_ORDER[b.estadoActual];         break
+        case 'fecha':     cmp = a.dateISO.localeCompare(b.dateISO);                          break
+        case 'nombre':    cmp = a.nombre.localeCompare(b.nombre, 'es');                      break
+        case 'categoria': cmp = CATEGORIA_ORDER[a.categoria] - CATEGORIA_ORDER[b.categoria]; break
+        case 'prioridad': cmp = PRIORIDAD_ORDER[a.prioridad] - PRIORIDAD_ORDER[b.prioridad]; break
+        case 'estado':    cmp = ESTADO_ORDER[a.estadoActual] - ESTADO_ORDER[b.estadoActual]; break
       }
       return sort.dir === 'asc' ? cmp : -cmp
     })
 
     return data
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, sort, searchQuery, statusOverride, allData])
+  }, [filters, sort, searchQuery, statusOverride, fieldOverrides, allData])
 
   return (
     <>
@@ -424,7 +446,7 @@ export default function InboxPage() {
                     </div>
                   </div>
 
-                  {/* Expanded detail */}
+                  {/* ── Expanded detail ── */}
                   {expanded && (
                     <div className="border-t border-[#F0F0F0] bg-neutral-50 px-6 py-4">
                       <div className="grid grid-cols-[1fr_280px] gap-6">
@@ -435,26 +457,76 @@ export default function InboxPage() {
                             <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
                               Resumen
                             </p>
-                            <p className="text-[12.5px] leading-relaxed text-neutral-700">{entry.resumen}</p>
+                            <InlineField
+                              value={entry.resumen}
+                              type="text"
+                              onSave={(v) => patchField(entry.id, { resumen: v || entry.resumen })}
+                              placeholder="Añadir resumen…"
+                              staticCls="text-[12.5px] leading-relaxed text-neutral-700"
+                            />
                           </div>
                           <div>
                             <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
                               Mensaje original
                             </p>
-                            <p className="rounded-lg border border-[#E8E8E8] bg-white p-3 text-[12px] leading-relaxed whitespace-pre-wrap text-neutral-600 italic">
-                              {entry.mensaje_textual}
-                            </p>
+                            <InlineField
+                              value={entry.mensaje_textual}
+                              type="textarea"
+                              onSave={(v) => patchField(entry.id, { mensaje_textual: v })}
+                              placeholder="Sin mensaje…"
+                              variant="boxed"
+                            />
                           </div>
                         </div>
 
-                        {/* Right: meta */}
+                        {/* Right: meta fields */}
                         <div className="space-y-3">
-                          <MetaRow label="Canal"     value={entry.canal === 'email' ? 'Email' : entry.canal === 'linkedin' ? 'LinkedIn' : 'Otro'} />
-                          <MetaRow label="Empresa"   value={entry.empresa} />
-                          <MetaRow label="Cargo"     value={entry.cargo} />
-                          <MetaRow label="Categoría" value={CATEGORIA_LABEL[entry.categoria]} />
-                          <MetaRow label="Prioridad" value={PRIORIDAD_LABEL[entry.prioridad]} />
-                          <MetaRow label="Fecha"     value={entry.fecha} />
+                          <EditableMetaRow
+                            label="Canal"
+                            value={entry.canal}
+                            type="select"
+                            options={CANAL_OPTS}
+                            onSave={(v) => patchField(entry.id, { canal: v as CanalType })}
+                          />
+                          <EditableMetaRow
+                            label="Empresa"
+                            value={entry.empresa}
+                            type="text"
+                            placeholder="no disponible"
+                            onSave={(v) => patchField(entry.id, { empresa: v.trim() || 'no disponible' })}
+                          />
+                          <EditableMetaRow
+                            label="Cargo"
+                            value={entry.cargo}
+                            type="text"
+                            placeholder="no disponible"
+                            onSave={(v) => patchField(entry.id, { cargo: v.trim() || 'no disponible' })}
+                          />
+                          <EditableMetaRow
+                            label="Categoría"
+                            value={entry.categoria}
+                            type="select"
+                            options={CATEGORIA_OPTS}
+                            onSave={(v) => patchField(entry.id, { categoria: v as CategoriaType })}
+                          />
+                          <EditableMetaRow
+                            label="Prioridad"
+                            value={entry.prioridad}
+                            type="select"
+                            options={PRIORIDAD_OPTS}
+                            onSave={(v) => patchField(entry.id, { prioridad: v as PrioridadType })}
+                          />
+                          <EditableMetaRow
+                            label="Fecha"
+                            value={entry.dateISO}
+                            displayValue={entry.fecha}
+                            type="date"
+                            onSave={(v) => {
+                              if (!v) return
+                              const [y, m, d] = v.split('-')
+                              patchField(entry.id, { fecha: `${d}.${m}.${y}`, dateISO: v })
+                            }}
+                          />
                           {(entry.email || entry.linkedin_url) && (
                             <div>
                               <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
@@ -463,14 +535,13 @@ export default function InboxPage() {
                               <ContactAction entry={entry} variant="expanded" />
                             </div>
                           )}
-                          {entry.notas !== 'no disponible' && (
-                            <div>
-                              <p className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
-                                Notas
-                              </p>
-                              <p className="text-[12px] leading-relaxed text-neutral-500">{entry.notas}</p>
-                            </div>
-                          )}
+                          <EditableMetaRow
+                            label="Notas"
+                            value={entry.notas}
+                            type="textarea"
+                            placeholder="Añadir notas…"
+                            onSave={(v) => patchField(entry.id, { notas: v.trim() || 'no disponible' })}
+                          />
                         </div>
                       </div>
                     </div>
@@ -658,14 +729,204 @@ export default function InboxPage() {
   )
 }
 
+// ── InlineField ────────────────────────────────────────────────────────────────
+// Renders a value that becomes editable on click. Supports text, date, select,
+// textarea. variant="boxed" wraps the static display in a bordered card
+// (used for Mensaje original).
+
+type InlineFieldType = 'text' | 'date' | 'select' | 'textarea'
+
+function InlineField({
+  value,
+  displayValue,
+  type,
+  options,
+  onSave,
+  placeholder = 'no disponible',
+  staticCls,
+  variant = 'inline',
+}: {
+  value:         string
+  displayValue?: string           // shown in static mode if different from value
+  type:          InlineFieldType
+  options?:      { value: string; label: string }[]
+  onSave:        (v: string) => void
+  placeholder?:  string
+  staticCls?:    string
+  variant?:      'inline' | 'boxed'
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState(value)
+
+  function open() {
+    setDraft(value)
+    setEditing(true)
+  }
+
+  function save() {
+    onSave(draft)
+    setEditing(false)
+  }
+
+  function cancel() {
+    setDraft(value)
+    setEditing(false)
+  }
+
+  // Auto-resize textarea: callback ref runs when element is mounted
+  function initTextarea(el: HTMLTextAreaElement | null) {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+    el.focus()
+  }
+
+  // ── Edit mode ──────────────────────────────────────────────────────────────
+
+  if (editing) {
+    if (type === 'select' && options) {
+      return (
+        <select
+          autoFocus
+          value={draft}
+          onChange={(e) => { onSave(e.target.value); setEditing(false) }}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') cancel() }}
+          className={cn(INPUT_CLS, 'py-1 text-[12px]')}
+        >
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      )
+    }
+
+    if (type === 'textarea') {
+      const textareaCls = variant === 'boxed'
+        ? 'w-full resize-none rounded-lg border border-neutral-300 bg-white p-3 text-[12px] leading-relaxed text-neutral-600 italic outline-none focus:border-neutral-400 transition-colors'
+        : cn(INPUT_CLS, 'resize-none text-[12px] leading-relaxed')
+      return (
+        <textarea
+          ref={initTextarea}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            e.target.style.height = 'auto'
+            e.target.style.height = `${e.target.scrollHeight}px`
+          }}
+          onBlur={save}
+          onKeyDown={(e) => { if (e.key === 'Escape') cancel() }}
+          className={textareaCls}
+          rows={3}
+        />
+      )
+    }
+
+    // text | date
+    return (
+      <input
+        autoFocus
+        type={type === 'date' ? 'date' : 'text'}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') save()
+          if (e.key === 'Escape') cancel()
+        }}
+        className={cn(INPUT_CLS, 'py-1 text-[12px]')}
+      />
+    )
+  }
+
+  // ── Static mode ────────────────────────────────────────────────────────────
+
+  // Compute label to show
+  const shown = displayValue
+    ?? (type === 'select' ? (options?.find((o) => o.value === value)?.label ?? value) : value)
+  const isEmpty = !shown || shown === 'no disponible'
+
+  if (variant === 'boxed') {
+    return (
+      <div
+        onClick={open}
+        className="group relative cursor-text rounded-lg border border-[#E8E8E8] bg-white p-3 transition-colors hover:border-neutral-300"
+      >
+        <p className={cn(
+          'text-[12px] leading-relaxed whitespace-pre-wrap',
+          isEmpty ? 'text-neutral-400 italic' : 'text-neutral-600 italic'
+        )}>
+          {isEmpty ? placeholder : shown}
+        </p>
+        <Pencil className="absolute right-2.5 top-2.5 h-3 w-3 text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      onClick={open}
+      className="group flex cursor-text items-start gap-1.5"
+    >
+      <span className={cn(
+        'flex-1 leading-relaxed transition-colors',
+        isEmpty ? 'text-neutral-400 italic' : 'text-neutral-700',
+        staticCls
+      )}>
+        {isEmpty ? placeholder : shown}
+      </span>
+      <Pencil className="mt-0.5 h-3 w-3 shrink-0 text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100" />
+    </div>
+  )
+}
+
+// ── EditableMetaRow ────────────────────────────────────────────────────────────
+// Label (non-editable) + InlineField value, used in the right column of the
+// expanded panel.
+
+function EditableMetaRow({
+  label,
+  value,
+  displayValue,
+  type,
+  options,
+  onSave,
+  placeholder,
+}: {
+  label:         string
+  value:         string
+  displayValue?: string
+  type:          InlineFieldType
+  options?:      { value: string; label: string }[]
+  onSave:        (v: string) => void
+  placeholder?:  string
+}) {
+  return (
+    <div>
+      <p className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
+        {label}
+      </p>
+      <InlineField
+        value={value}
+        displayValue={displayValue}
+        type={type}
+        options={options}
+        onSave={onSave}
+        placeholder={placeholder}
+        staticCls="text-[12px]"
+      />
+    </div>
+  )
+}
+
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function SortHeader({
   col, label, sort, onClick,
 }: {
-  col: SortCol
-  label: string
-  sort: SortState
+  col:     SortCol
+  label:   string
+  sort:    SortState
   onClick: (col: SortCol) => void
 }) {
   const active = sort.col === col
@@ -688,7 +949,7 @@ function SortHeader({
 function ContactAction({
   entry, variant = 'row',
 }: {
-  entry: InboxEntry
+  entry:    InboxEntry
   variant?: 'row' | 'expanded'
 }) {
   const btnCls = cn(
@@ -732,10 +993,10 @@ function ContactAction({
 function FilterSelect({
   label, value, onChange, options,
 }: {
-  label: string
-  value: string
+  label:    string
+  value:    string
   onChange: (v: string) => void
-  options: { value: string; label: string }[]
+  options:  { value: string; label: string }[]
 }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -762,17 +1023,6 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
     <div className="flex flex-col gap-1">
       <label className="text-[11.5px] font-medium text-neutral-600">{label}</label>
       {children}
-    </div>
-  )
-}
-
-function MetaRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">{label}</p>
-      <p className={cn('text-[12px] text-neutral-700', value === 'no disponible' && 'text-neutral-400 italic')}>
-        {value}
-      </p>
     </div>
   )
 }
