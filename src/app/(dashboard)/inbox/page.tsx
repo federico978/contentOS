@@ -527,7 +527,7 @@ export default function InboxPage() {
                               patchField(entry.id, { fecha: `${d}.${m}.${y}`, dateISO: v })
                             }}
                           />
-                          {(entry.canal === 'email' || !!entry.email || !!entry.linkedin_url) && (
+                          {(!!entry.email || !!entry.linkedin_url) && (
                             <div>
                               <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">
                                 Acción
@@ -958,8 +958,8 @@ function ContactAction({
   )
   const iconSize = variant === 'expanded' ? 'h-3.5 w-3.5' : 'h-3 w-3'
 
-  // Show Gmail if canal is "email" OR if an email address is stored in the field
-  const showGmail    = entry.canal === 'email' || (!!entry.email && entry.email !== 'no disponible')
+  // Show Gmail only when there is an actual email address to send to
+  const showGmail    = !!entry.email && entry.email !== 'no disponible'
   // Show LinkedIn only when there is an actual URL to link to
   const showLinkedin = !!entry.linkedin_url && entry.linkedin_url !== 'no disponible'
 
