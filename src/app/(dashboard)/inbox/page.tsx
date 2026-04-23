@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
-  ChevronDown, ChevronUp, Mail, X as XIcon, Search, Plus, ExternalLink, Pencil,
+  ChevronDown, ChevronUp, Mail, X as XIcon, Search, Plus, ExternalLink, Pencil, Trash2,
 } from 'lucide-react'
 import {
   INBOX_DATA, InboxEntry, CanalType, CategoriaType, PrioridadType, EstadoType,
@@ -144,9 +144,11 @@ export default function InboxPage() {
   const [expandedId,     setExpandedId]     = useState<string | null>(null)
   const [statusOverride, setStatusOverride] = useState<Record<string, EstadoType>>({})
   const [fieldOverrides, setFieldOverrides] = useState<Record<string, Partial<InboxEntry>>>({})
-  const [showNewModal,   setShowNewModal]   = useState(false)
-  const [newForm,        setNewForm]        = useState<NewForm>(EMPTY_FORM)
-  const [customEntries,  setCustomEntries]  = useState<InboxEntry[]>([])
+  const [showNewModal,    setShowNewModal]    = useState(false)
+  const [newForm,         setNewForm]         = useState<NewForm>(EMPTY_FORM)
+  const [customEntries,   setCustomEntries]   = useState<InboxEntry[]>([])
+  const [deletedIds,      setDeletedIds]      = useState<Set<string>>(new Set())
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   function getEstado(entry: InboxEntry): EstadoType {
     return statusOverride[entry.id] ?? entry.estado
@@ -204,7 +206,17 @@ export default function InboxPage() {
     setNewForm(EMPTY_FORM)
   }
 
-  const allData = useMemo(() => [...customEntries, ...INBOX_DATA], [customEntries])
+  function handleDeleteConfirmed() {
+    if (!confirmDeleteId) return
+    setDeletedIds((prev) => new Set([...prev, confirmDeleteId]))
+    if (expandedId === confirmDeleteId) setExpandedId(null)
+    setConfirmDeleteId(null)
+  }
+
+  const allData = useMemo(
+    () => [...customEntries, ...INBOX_DATA].filter((e) => !deletedIds.has(e.id)),
+    [customEntries, deletedIds]
+  )
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasSearch        = searchQuery.trim() !== ''
 
@@ -363,7 +375,7 @@ export default function InboxPage() {
           <div className="overflow-hidden rounded-xl border border-[#D9D9D9] bg-white shadow-sm">
 
             {/* Table head */}
-            <div className="grid grid-cols-[90px_130px_1fr_2fr_100px_72px_126px_32px] items-center gap-3 border-b border-[#E8E8E8] bg-neutral-50 px-4 py-2">
+            <div className="grid grid-cols-[90px_130px_1fr_2fr_100px_72px_126px_24px_28px] items-center gap-3 border-b border-[#E8E8E8] bg-neutral-50 px-4 py-2">
               <SortHeader col="fecha"     label="Fecha"     sort={sort} onClick={handleSortClick} />
               <span className="text-[10.5px] font-semibold uppercase tracking-wider text-neutral-400">Contacto</span>
               <SortHeader col="nombre"    label="Nombre"    sort={sort} onClick={handleSortClick} />
@@ -371,6 +383,7 @@ export default function InboxPage() {
               <SortHeader col="categoria" label="Categoría" sort={sort} onClick={handleSortClick} />
               <SortHeader col="prioridad" label="Prior."    sort={sort} onClick={handleSortClick} />
               <SortHeader col="estado"    label="Estado"    sort={sort} onClick={handleSortClick} />
+              <span />
               <span />
             </div>
 
@@ -386,7 +399,7 @@ export default function InboxPage() {
                   <div
                     onClick={() => toggleExpand(entry.id)}
                     className={cn(
-                      'grid grid-cols-[90px_130px_1fr_2fr_100px_72px_126px_32px] cursor-pointer items-start gap-3 px-4 py-3 transition-colors',
+                      'group grid grid-cols-[90px_130px_1fr_2fr_100px_72px_126px_24px_28px] cursor-pointer items-start gap-3 px-4 py-3 transition-colors',
                       expanded ? 'bg-neutral-50' : 'hover:bg-neutral-50/60'
                     )}
                   >
@@ -423,11 +436,11 @@ export default function InboxPage() {
                     </span>
 
                     {/* Prioridad */}
-                    <div className="flex items-center gap-1 pt-0.5">
-                      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', PRIORIDAD_DOT[entry.prioridad])} />
-                      <span className={cn('text-[11.5px] font-medium', PRIORIDAD_TEXT[entry.prioridad])}>
-                        {PRIORIDAD_LABEL[entry.prioridad]}
-                      </span>
+                    <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
+                      <PrioridadDropdown
+                        value={entry.prioridad}
+                        onChange={(v) => patchField(entry.id, { prioridad: v })}
+                      />
                     </div>
 
                     {/* Estado */}
@@ -444,6 +457,17 @@ export default function InboxPage() {
                           <option key={k} value={k}>{ESTADO_LABEL[k]}</option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* Trash */}
+                    <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center pt-0.5">
+                      <button
+                        onClick={() => setConfirmDeleteId(entry.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-300 hover:text-red-500"
+                        title="Eliminar contacto"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     {/* Expand toggle */}
@@ -693,6 +717,36 @@ export default function InboxPage() {
         </div>
       </div>
     )}
+    {/* ── Confirmar eliminación Modal ── */}
+    {confirmDeleteId && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget) setConfirmDeleteId(null) }}
+      >
+        <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+          <div className="px-6 py-5">
+            <h2 className="mb-2 text-[14px] font-bold text-[#0A0A0A]">Eliminar contacto</h2>
+            <p className="text-[12.5px] leading-relaxed text-neutral-600">
+              ¿Estás seguro que querés eliminar este contacto? Esta acción no se puede deshacer.
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-2 border-t border-[#F0F0F0] px-6 py-4">
+            <button
+              onClick={() => setConfirmDeleteId(null)}
+              className="rounded-lg border border-[#D9D9D9] px-4 py-1.5 text-[12.5px] text-neutral-600 transition-colors hover:bg-neutral-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDeleteConfirmed}
+              className="rounded-lg bg-red-600 px-4 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:bg-red-700"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   )
 }
@@ -885,6 +939,64 @@ function EditableMetaRow({
         placeholder={placeholder}
         staticCls={cn('text-[12px]', staticCls)}
       />
+    </div>
+  )
+}
+
+// ── PrioridadDropdown ──────────────────────────────────────────────────────────
+// Inline dropdown to change priority directly from the table row badge.
+
+function PrioridadDropdown({
+  value,
+  onChange,
+}: {
+  value:    PrioridadType
+  onChange: (v: PrioridadType) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 rounded px-0.5 py-0.5 transition-colors hover:bg-neutral-100"
+      >
+        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', PRIORIDAD_DOT[value])} />
+        <span className={cn('text-[11.5px] font-medium', PRIORIDAD_TEXT[value])}>
+          {PRIORIDAD_LABEL[value]}
+        </span>
+        <ChevronDown className="h-2.5 w-2.5 text-neutral-400" strokeWidth={2} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 w-[88px] overflow-hidden rounded-lg border border-[#D9D9D9] bg-white shadow-md">
+          {(['high', 'medium', 'low'] as PrioridadType[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => { onChange(p); setOpen(false) }}
+              className={cn(
+                'flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-neutral-50',
+                value === p && 'bg-neutral-50'
+              )}
+            >
+              <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', PRIORIDAD_DOT[p])} />
+              <span className={cn('text-[11.5px] font-medium', PRIORIDAD_TEXT[p])}>
+                {PRIORIDAD_LABEL[p]}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
