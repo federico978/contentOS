@@ -489,6 +489,14 @@ export default function InboxPage() {
                             onSave={(v) => patchField(entry.id, { canal: v as CanalType })}
                           />
                           <EditableMetaRow
+                            label="Email"
+                            value={entry.email}
+                            type="text"
+                            placeholder="no disponible"
+                            onSave={(v) => patchField(entry.id, { email: v.trim() })}
+                            staticCls="break-all font-normal not-italic"
+                          />
+                          <EditableMetaRow
                             label="Empresa"
                             value={entry.empresa}
                             type="text"
@@ -892,6 +900,7 @@ function EditableMetaRow({
   options,
   onSave,
   placeholder,
+  staticCls,
 }: {
   label:         string
   value:         string
@@ -900,6 +909,7 @@ function EditableMetaRow({
   options?:      { value: string; label: string }[]
   onSave:        (v: string) => void
   placeholder?:  string
+  staticCls?:    string
 }) {
   return (
     <div>
@@ -913,7 +923,7 @@ function EditableMetaRow({
         options={options}
         onSave={onSave}
         placeholder={placeholder}
-        staticCls="text-[12px]"
+        staticCls={cn('text-[12px]', staticCls)}
       />
     </div>
   )
