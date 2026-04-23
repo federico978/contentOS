@@ -3,10 +3,14 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   ChevronDown, ChevronUp, Mail, X as XIcon, Search, Plus, ExternalLink, Pencil, Trash2,
+  Loader2,
 } from 'lucide-react'
 import {
-  INBOX_DATA, InboxEntry, CanalType, CategoriaType, PrioridadType, EstadoType,
+  InboxEntry, CanalType, CategoriaType, PrioridadType, EstadoType,
 } from '@/lib/data/inbox'
+import {
+  fetchInboxEntries, createInboxEntry, updateInboxEntry, deleteInboxEntry, seedInboxIfEmpty,
+} from '@/lib/api/inbox'
 import { cn } from '@/lib/utils'
 
 // ── Label / style maps ─────────────────────────────────────────────────────────
@@ -138,28 +142,61 @@ const INPUT_CLS = 'w-full rounded-md border border-[#D9D9D9] bg-white px-3 py-1.
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function InboxPage() {
-  const [filters,        setFilters]        = useState<Filters>(EMPTY_FILTERS)
-  const [sort,           setSort]           = useState<SortState>({ col: 'fecha', dir: 'desc' })
-  const [searchQuery,    setSearchQuery]    = useState('')
-  const [expandedId,     setExpandedId]     = useState<string | null>(null)
-  const [statusOverride, setStatusOverride] = useState<Record<string, EstadoType>>({})
-  const [fieldOverrides, setFieldOverrides] = useState<Record<string, Partial<InboxEntry>>>({})
+  // ── UI state ──────────────────────────────────────────────────────────────
+  const [filters,         setFilters]         = useState<Filters>(EMPTY_FILTERS)
+  const [sort,            setSort]            = useState<SortState>({ col: 'fecha', dir: 'desc' })
+  const [searchQuery,     setSearchQuery]     = useState('')
+  const [expandedId,      setExpandedId]      = useState<string | null>(null)
   const [showNewModal,    setShowNewModal]    = useState(false)
   const [newForm,         setNewForm]         = useState<NewForm>(EMPTY_FORM)
-  const [customEntries,   setCustomEntries]   = useState<InboxEntry[]>([])
-  const [deletedIds,      setDeletedIds]      = useState<Set<string>>(new Set())
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
-  function getEstado(entry: InboxEntry): EstadoType {
-    return statusOverride[entry.id] ?? entry.estado
+  // ── Supabase-backed data state ─────────────────────────────────────────────
+  const [rawEntries, setRawEntries] = useState<InboxEntry[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [errorMsg,   setErrorMsg]   = useState<string | null>(null)
+
+  // ── Load from Supabase on mount ────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      setErrorMsg(null)
+      try {
+        await seedInboxIfEmpty()
+        const data = await fetchInboxEntries()
+        if (!cancelled) setRawEntries(data)
+      } catch {
+        if (!cancelled) setErrorMsg('No se pudieron cargar los registros. Revisá tu conexión e intentá de nuevo.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  // ── Optimistic patch → Supabase update ────────────────────────────────────
+  async function patchField(id: string, updates: Partial<InboxEntry>) {
+    // 1. Update local state immediately so the UI responds without lag
+    setRawEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)))
+    try {
+      await updateInboxEntry(id, updates)
+    } catch {
+      // Revert by reloading from Supabase
+      setErrorMsg('Error al guardar los cambios. Recargando datos…')
+      try {
+        const fresh = await fetchInboxEntries()
+        setRawEntries(fresh)
+        setErrorMsg(null)
+      } catch {
+        setErrorMsg('Error al guardar los cambios. Recargá la página para ver el estado real.')
+      }
+    }
   }
 
-  function updateEstado(id: string, estado: EstadoType) {
-    setStatusOverride((prev) => ({ ...prev, [id]: estado }))
-  }
-
-  function patchField(id: string, updates: Partial<InboxEntry>) {
-    setFieldOverrides((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...updates } }))
+  async function updateEstado(id: string, estado: EstadoType) {
+    await patchField(id, { estado })
   }
 
   function toggleExpand(id: string) {
@@ -178,15 +215,13 @@ export default function InboxPage() {
     )
   }
 
-  function handleSubmitNew(e: React.FormEvent) {
+  async function handleSubmitNew(e: React.FormEvent) {
     e.preventDefault()
     const [y, m, d] = newForm.fecha.split('-')
-    const fecha   = `${d}.${m}.${y}`
-    const dateISO = newForm.fecha
     const newEntry: InboxEntry = {
-      id:              `custom-${Date.now()}`,
-      fecha,
-      dateISO,
+      id:              `inbox-${Date.now()}`,
+      fecha:           `${d}.${m}.${y}`,
+      dateISO:         newForm.fecha,
       canal:           newForm.canal,
       nombre:          newForm.nombre.trim() || 'Sin nombre',
       empresa:         newForm.empresa.trim() || 'no disponible',
@@ -201,30 +236,37 @@ export default function InboxPage() {
       estado:          'pendiente',
       notas:           newForm.notas.trim() || 'no disponible',
     }
-    setCustomEntries((prev) => [newEntry, ...prev])
+    // Close modal immediately for snappy UX
     setShowNewModal(false)
     setNewForm(EMPTY_FORM)
+    try {
+      await createInboxEntry(newEntry)
+      setRawEntries((prev) => [newEntry, ...prev])
+    } catch {
+      setErrorMsg('No se pudo guardar el nuevo registro. Intentá de nuevo.')
+    }
   }
 
-  function handleDeleteConfirmed() {
+  async function handleDeleteConfirmed() {
     if (!confirmDeleteId) return
-    setDeletedIds((prev) => new Set([...prev, confirmDeleteId]))
-    if (expandedId === confirmDeleteId) setExpandedId(null)
+    const id = confirmDeleteId
     setConfirmDeleteId(null)
+    if (expandedId === id) setExpandedId(null)
+    // Optimistic removal
+    const backup = rawEntries
+    setRawEntries((prev) => prev.filter((e) => e.id !== id))
+    try {
+      await deleteInboxEntry(id)
+    } catch {
+      setRawEntries(backup)
+      setErrorMsg('No se pudo eliminar el registro. Intentá de nuevo.')
+    }
   }
-
-  const allData = useMemo(
-    () => [...customEntries, ...INBOX_DATA].filter((e) => !deletedIds.has(e.id)),
-    [customEntries, deletedIds]
-  )
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasSearch        = searchQuery.trim() !== ''
 
   const entries = useMemo(() => {
-    let data = allData.map((e) => {
-      const overridden = { ...e, ...(fieldOverrides[e.id] ?? {}) }
-      return { ...overridden, estadoActual: statusOverride[e.id] ?? overridden.estado }
-    })
+    let data = rawEntries.map((e) => ({ ...e, estadoActual: e.estado }))
 
     // Filters
     if (filters.canal)     data = data.filter((e) => e.canal        === filters.canal)
@@ -257,7 +299,7 @@ export default function InboxPage() {
 
     return data
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, sort, searchQuery, statusOverride, fieldOverrides, allData])
+  }, [filters, sort, searchQuery, rawEntries])
 
   return (
     <>
@@ -269,7 +311,7 @@ export default function InboxPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-[15px] font-bold text-[#0A0A0A]">Inbox</h1>
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-500">
-              {entries.length} / {allData.length}
+              {entries.length} / {rawEntries.length}
             </span>
           </div>
           <button
@@ -360,14 +402,34 @@ export default function InboxPage() {
           Mostrando{' '}
           <span className="font-semibold text-neutral-600">{entries.length}</span>
           {' '}de{' '}
-          <span className="font-semibold text-neutral-600">{allData.length}</span>
+          <span className="font-semibold text-neutral-600">{rawEntries.length}</span>
           {' '}consultas
         </span>
       </div>
 
       {/* ── Table ── */}
       <div className="flex-1 overflow-auto px-6 py-4">
-        {entries.length === 0 ? (
+
+        {/* Error banner */}
+        {errorMsg && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-[12.5px] text-red-700">{errorMsg}</p>
+            <button
+              onClick={() => setErrorMsg(null)}
+              className="shrink-0 text-red-400 hover:text-red-600 transition-colors"
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading ? (
+          <div className="flex h-40 items-center justify-center gap-2 text-[13px] text-neutral-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Cargando registros…
+          </div>
+        ) : entries.length === 0 ? (
           <div className="flex h-40 items-center justify-center text-[13px] text-neutral-400">
             Sin resultados para los filtros aplicados
           </div>
