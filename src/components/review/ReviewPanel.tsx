@@ -439,8 +439,12 @@ export function ReviewPanel({
                     onCommentUpdated?.(post.id, updated)
                   }}
                   onDelete={async (id) => {
-                    await deleteComment(id, userId)
-                    onCommentDeleted?.(post.id, id)
+                    try {
+                      await deleteComment(id, userId)
+                      onCommentDeleted?.(post.id, id)
+                    } catch (err) {
+                      console.error('[ReviewPanel] deleteComment threw:', err)
+                    }
                   }}
                 />
               ))}

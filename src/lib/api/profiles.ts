@@ -82,7 +82,17 @@ export async function deleteComment(id: string, userId: string): Promise<void> {
     .delete()
     .eq('id', id)
     .eq('user_id', userId)
-  if (error) throw new Error(`deleteComment failed: ${error.message}`)
+  if (error) {
+    console.error('[deleteComment] Supabase error:', {
+      code:    error.code,
+      message: error.message,
+      details: error.details,
+      hint:    error.hint,
+      commentId: id,
+      userId,
+    })
+    throw new Error(`deleteComment failed: ${error.message}`)
+  }
 }
 
 // ── Approvals ─────────────────────────────────────────────────────────────────
