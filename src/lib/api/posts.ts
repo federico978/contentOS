@@ -159,7 +159,9 @@ export async function fetchPost(id: string): Promise<PostWithDetails> {
         *,
         channel: channels (*)
       ),
-      media_files (*)
+      media_files (*),
+      post_approvals (status),
+      post_comments (id)
     `)
     .eq('id', id)
     .single()
