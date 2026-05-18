@@ -65,7 +65,7 @@ const CATEGORIA_ORDER: Record<CategoriaType, number> = { hiring: 1, investor: 2,
 // ── Select option arrays ───────────────────────────────────────────────────────
 
 const CANAL_OPTS: { value: string; label: string }[] = [
-  { value: 'email', label: 'Email' }, { value: 'linkedin', label: 'LinkedIn' }, { value: 'otro', label: 'Otro' },
+  { value: 'email', label: 'Web' }, { value: 'linkedin', label: 'LinkedIn' }, { value: 'otro', label: 'Otro' },
 ]
 const CATEGORIA_OPTS: { value: string; label: string }[] = [
   { value: 'hiring', label: 'Hiring' }, { value: 'investor', label: 'Investor' },
@@ -224,7 +224,7 @@ export default function InboxPage() {
       pendiente: 'Pendiente', en_curso: 'En curso',
       respondido: 'Respondido', descartado: 'Descartado',
     }
-    const LABEL_CANAL:     Record<string, string> = { email: 'Email', linkedin: 'LinkedIn', otro: 'Otro' }
+    const LABEL_CANAL:     Record<string, string> = { email: 'Web', linkedin: 'LinkedIn', otro: 'Otro' }
     const LABEL_CAT:       Record<string, string> = {
       hiring: 'Hiring', investor: 'Investor', partnership: 'Partnership',
       sales: 'Sales', media: 'Media', general: 'General',
@@ -396,7 +396,7 @@ export default function InboxPage() {
           label="Canal" value={filters.canal}
           onChange={(v) => setFilters((f) => ({ ...f, canal: v as CanalType | '' }))}
           options={[
-            { value: 'email',    label: 'Email' },
+            { value: 'email',    label: 'Web' },
             { value: 'linkedin', label: 'LinkedIn' },
             { value: 'otro',     label: 'Otro' },
           ]}
@@ -701,7 +701,7 @@ export default function InboxPage() {
                   onChange={(e) => setNewForm((f) => ({ ...f, canal: e.target.value as CanalType }))}
                   className={INPUT_CLS}
                 >
-                  <option value="email">Email</option>
+                  <option value="email">Web</option>
                   <option value="linkedin">LinkedIn</option>
                   <option value="otro">Otro</option>
                 </select>
